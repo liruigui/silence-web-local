@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>连接</title>
+    <div th:replace="common/index::style"></div>
+</head>
+<body>
+<div id="app" >
+    <el-form size="small" :inline="true" label-width="80px" class="form-query">
+        <el-form-item label="名称">
+            <el-input clearable v-model="queryParam.nameLike" placeholder="名称" ></el-input>
+        </el-form-item>
+        <el-form-item label="类型">
+            <el-select filterable  clearable v-model="queryParam.type" placeholder="类型"  >
+                <el-option v-for="item in typeList" :key="'q_type_'+item.key" :label="item.value" :value="item.key"></el-option>
+            </el-select>
+        </el-form-item>
+        <div th:replace="common/index::formItemQueryReset"></div>
+    </el-form>
+    <el-row>
+        <el-button size="small" type="primary"  @click="handleEdit('open', {} )" ><span v-text="'新增'"></span></el-button>
+    </el-row>
+    <el-table border size="small" :data="queryResult.data" stripe tooltip-effect="dark">
+        <el-table-column header-align="center" align="center" type="index" width="50" label="#"></el-table-column>
+        <el-table-column header-align="center" align="center" label="操作" width="120">
+            <template slot-scope="scope">
+                <el-button size="mini" type="text" @click="handleEdit('open', scope.row ,scope.$index)" ><span v-text="'编辑'"></span></el-button>
+                <el-button size="mini" type="text" @click="handleTest(scope.row ,scope.$index)" ><span v-text="'测试'"></span></el-button>
+            </template>
+        </el-table-column>
+        <el-table-column header-align="center" align="center" prop="name" label="名称"></el-table-column>
+        <el-table-column header-align="center" align="center" prop="typeStr" label="类型" width="100" ></el-table-column>
+        <el-table-column header-align="left" align="left" prop="url" label="URL"></el-table-column>
+        <el-table-column header-align="center" align="center" prop="username" label="账号"></el-table-column>
+        <el-table-column header-align="center" align="center" prop="sequence" label="排序" width="50" ></el-table-column>
+        <el-table-column header-align="left" align="left" prop="description" label="描述"></el-table-column>
+        <el-table-column header-align="center" align="center" prop="updaterName" label="更新人" width="150" ></el-table-column>
+        <el-table-column header-align="center" align="center" prop="updateTimeStr" label="更新时间" width="160"></el-table-column>
+    </el-table>
+    <div th:replace="common/index::pagination1"></div>
+
+    <!-- 数据编辑 -->
+    <el-dialog :close-on-click-modal="false" :title="edit.title" :visible.sync="edit.show" @close="handleEdit('close')" width="630px" >
+        <el-form size="small" :inline="true" :ref="edit.formref" :model="edit.data" :rules="edit.rules" label-width="80px" class="form-query">
+            <el-form-item label="名称"  prop="name" >
+                <el-input clearable v-model="edit.data.name" placeholder="名称" ></el-input>
+            </el-form-item>
+            <el-form-item label="类型"  prop="type" >
+                <el-select filterable  clearable v-model="edit.data.type" placeholder="类型"  >
+                    <el-option v-for="item in typeList" :key="'e_type_'+item.key" :label="item.value" :value="item.key"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="URL"  prop="url"  >
+                <el-input clearable v-model="edit.data.url" placeholder="url" style="width: 478px;" ></el-input>
+            </el-form-item>
+            <el-form-item label="账号"  prop="username" >
+                <el-input clearable v-model="edit.data.username" placeholder="账号" ></el-input>
+            </el-form-item>
+            <el-form-item label="密码"  prop="password" >
+                <el-input clearable type="password" v-model="edit.data.password" placeholder="密码" ></el-input>
+            </el-form-item>
+            <el-form-item label="排序"  prop="sequence" >
+                <el-input-number clearable v-model="edit.data.sequence" placeholder="排序" controls-position="right" :min="1" :max="99999999" ></el-input-number>
+            </el-form-item>
+            <el-form-item label="描述"  prop="description" >
+                <el-input clearable v-model="edit.data.description" placeholder="描述" type="textarea" :rows="2" style="width: 478px;" ></el-input>
+            </el-form-item>
+        </el-form>
+        <div th:replace="common/index::dialogFooterEdit"></div>
+    </el-dialog>
+
+</div>
+<div th:replace="common/index::script"></div>
+<script>
+    const vm = new Vue({
+        el: '#app',
+        data: initData({
+            // 枚举
+            typeList: JSON.parse('[[${typeList}]]'.replace(/\&quot;/g, '"')), typeMap: {},
+            edit: {
+                show: false,
+                title: '',
+                formref: 'editFormref',
+                sourceData: null,
+                data: {name:null,type:null,url:null,username:null,password:null,sequence:null,description:null},
+                rules: {}
+            }
+        }),
+        beforeCreate() {
+            // vue创建前
+        },
+        created() {
+            // vue创建成功，此时html元素尚未挂载
+        },
+        mounted() {
+            this.dataListToMap();
+            this.handleQuery(1);
+        },
+        watch: {
+            // 监控数据变化
+        },
+        computed: {
+            // 计算属性
+        },
+        methods: {
+            handleQuery: initHandleQuery(),
+            handleEdit: initHandleEdit(),
+            handleTest(row, index) {
+                let {id, name} = row;
+                axios.post("test", SilenceUtils.getUrlParams({id})).then(({data: result} = res) => {
+
+                    this.$message({
+                        showClose: true,
+                        type: result.success ? 'success' : 'warning',
+                        message: name + ' ' + result.message
+                    });
+
+                }).catch(err => {
+                    //发生错误时的提示框
+                    this.$message({showClose: true, type: 'error', message: err});
+                }).finally(() => {
+                    //最终总会执行的函数，没有参数
+                });
+            },
+
+        }
+    });
+</script>
+</body>
+</html>

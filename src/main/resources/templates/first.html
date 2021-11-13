@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" >
+<head>
+    <meta charset="UTF-8">
+    <title>易开发</title>
+    <div th:replace="common/index::style"></div>
+    <style type="text/css">
+        #app{
+            flex-direction:column;
+            align-items: center;
+        }
+        .el-link {
+            height: 30px;
+            margin: 5px 10px;
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+<el-container id="app">
+    <div>
+
+        <el-link type="primary" href="https://tool.lu/timestamp/" target="_blank"><span v-text="'时间戳'"></span></el-link>
+    </div>
+</el-container>
+<div th:replace="common/index::script"></div>
+<script>
+    const vm = new Vue({
+        el: '#app',
+        data(){
+            return {
+
+            }
+        },
+        created() {
+
+        },
+        watch: {
+
+        },
+        computed: {
+
+        },
+        mounted(){
+
+        },
+        methods: {
+
+        }
+    });
+</script>
+</body>
+</html>

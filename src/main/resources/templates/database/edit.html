@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>页面编辑</title>
+    <div th:replace="common/index::style"></div>
+    <style type="text/css">
+        html, body, #app {
+            margin: 0px;
+            height: 100%;
+        }
+        body{
+            margin: 10px;
+        }
+
+        #app {
+
+        }
+        .app-header{
+            position: absolute;
+            right: 100px;
+            height: 35px;
+            line-height: 35px;
+        }
+        .app-header .link-info{
+            margin: 0px 5px;
+            color: #999999;
+
+        }
+
+        .el-table [class^=el-icon]{
+            cursor: pointer;
+           font-size: 14px;
+        }
+
+
+        .el-form .el-form-item__label {
+            /*对超出内容隐藏*/
+            overflow: hidden;
+            /*显示省略符号来代表被修剪的文本*/
+            text-overflow: ellipsis;
+            /*文本不会换行，文本会在在同一行上继续，直到遇到 <br> 标签为止。*/
+            white-space: nowrap;
+        }
+
+        .app-footer{
+            position: fixed;
+            bottom: 0px;
+            left: 0px;
+            background-color: white;
+            width: 100%;
+            padding-left: 10px;
+            box-sizing: border-box;
+            z-index: 5;
+        }
+        .app-footer>div{
+            display: inline-block;
+        }
+        .app-footer .link-info{
+            margin: 0px 5px;
+            color: #999999;
+            float: right;
+        }
+
+
+
+        .el-collapse-item__content pre{
+            margin: 0px;
+        }
+
+
+        .action-btn-group{
+            position: fixed;
+            top:10px;
+            right: 10px;
+            z-index: 100;
+        }
+
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="app-header">
+
+    </div>
+    <div class="app-footer">
+        <div class="link-info">
+            <span v-text="params.url"></span>
+            <span v-text="params.database"></span>
+        </div>
+    </div>
+
+    <el-form size="small" :inline="true" label-width="85px" class="form-query">
+       <!-- <el-form-item v-for="item in tableInfo.columnList" :key="'q_'+item.columnName" :label="item.columnComment||item.columnNameHump">
+            <el-input clearable v-model="queryParam[item.columnName]" :placeholder="item.columnComment||item.columnName" ></el-input>
+        </el-form-item>-->
+        <el-form-item v-for="item in table.columns" :key="'q_'+item.id">
+            <template>
+                <label v-if="item.name.length<=5" slot="label" :title="item.name" v-text="item.name"></label>
+                <el-tooltip v-else slot="label" class="item" effect="dark" :content="item.name" placement="top-start">
+                    <label v-text="item.name"></label>
+                </el-tooltip>
+            </template>
+            <el-input clearable v-model="queryParam[item.code]" :placeholder="item.placeholder" ></el-input>
+        </el-form-item>
+        <div th:replace="common/index::formItemQueryReset"></div>
+    </el-form>
+
+
+</div>
+<div th:replace="common/index::script"></div>
+<script>
+
+    const vm = new Vue({
+        el: '#app',
+        data: initData({
+            params: {},
+            tableInfo: {},
+            primaryKey:'',
+            sqlSelectColumnText:'',
+            table:{},
+        }),
+        created() {
+
+        },
+        watch: {
+
+        },
+        computed: {
+
+        },
+        mounted(){
+
+
+            this.params=SilenceUtils.getUrlParams();
+            console.log('params',this.params);
+            this.axiosDbTableInfo(this.params).then(res => {
+
+                let sequence=['id',
+                    'fCity','fcity','cityId','cityName',
+                    'fWarehouse','fwarehouse','warehouseId','warehouseName',
+                    'deliveryDate','productBatch','skuId','ssuId',
+                    'code','name','type','status',
+                    null,
+                    'creater','creator','createrName','creatorName','ct','cT','createTime',
+                    'updater','updator','updaterName','updatorName','ut','uT','updateTime',
+                    'isDeleted','isDelete','deleted','delete'];
+                if (res.success) {
+                    let obj=res.data || {};
+                    let columnList=obj.columnList||[];
+
+                    let nullIndex=sequence.indexOf(null);
+                    columnList.forEach((item,index)=>{
+
+                        item.columnNameHump=Table.strHump(item.columnName);
+
+                        if(item.columnKey==='PRI'){
+                            this.primaryKey=item.columnName;
+                            item.sequence=0;
+                            return true;
+                        }
+
+                        item.sequence=sequence.indexOf(item.columnNameHump);
+                        if(item.sequence===-1){
+                            item.sequence=nullIndex;
+                        }
+
+                        if(item.sequence===nullIndex){
+                            item.sequence+=index;
+                        }else if(item.sequence>nullIndex){
+                            item.sequence+=100;
+                        }
+                    });
+                    this.sqlSelectColumnText=columnList.map(item=>'`'+item.columnName+'`').join(',');
+                    columnList.sort((o1,o2)=>o1.sequence-o2.sequence);
+                    this.tableInfo = obj;
+
+                    this.table = new Table(this.tableInfo);
+                    console.log('table obj ',this.table);
+                } else {
+                    // 提示
+                }
+            }).catch(err => {
+
+            }).finally(()=>{
+                this.handleQuery(1);
+            });
+
+
+        },
+        methods: {
+            handleQuery: initHandleQuery2({
+                setParams(queryParam) {
+
+                    let that=vm;
+                    let params = {};
+                    // 基础参数
+                    params.connectionId = that.params.connectionId;
+                    params.database = that.params.database;
+                    params.tableCode = that.params.tableCode;
+                    params.primaryKey = that.primaryKey;
+                    params.primaryKeyValues = that.params.primaryKeyValues||[];
+                    params.sqlSelectColumnText = that.sqlSelectColumnText;
+
+                    return SilenceUtils.getUrlParams(params);
+                },
+                setData(result){
+
+                    let isTime = function (field) {
+
+                        if (!field) {
+                            return false;
+                        }
+
+                        if (['syncTime', 'deliveryDate', 'ct', 'ut', 'createTime', 'updateTime'].includes(field)) {
+                            return true;
+                        }
+
+                        if (field.indexOf('Date') !== -1 || field.indexOf('Time') !== -1 || field.indexOf('time') !== -1) {
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    (result.data||[]).forEach(item=>{
+
+                        for (let field in item) {
+
+                            if (!isTime(field)) {
+                                continue;
+                            }
+
+                            let val = item[field];
+                            if (val) {
+                                item[field] += SilenceUtils.getDateTimeStr(val, " (yyyy-MM-dd HH:mm:ss)");
+                            }
+                        }
+                    });
+                }
+            }),
+            axiosDbTableInfo(params) {
+                params.action = 'tableInfo';
+                return new Promise((resolve, reject) => {
+                    axios.post("/database/index?" + params.action, SilenceUtils.getUrlParams(params)).then(({data: res} = result) => {
+                        resolve(res);
+                    }).catch(res => {
+                        reject(res);
+                    });
+                });
+            },
+        }
+    });
+</script>
+
+</body>
+</html>

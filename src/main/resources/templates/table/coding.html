@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>表配置</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="/element-ui/index.css">
+    <style type="text/css">
+        #app{
+            padding-top: 50px;
+        }
+        header{
+            position: fixed;
+            display: flex;
+            top: 0px;
+            left: 0px;
+            padding-left: 5px;
+            padding-right: 5px;
+            align-items: center;
+            width: 100%;
+            height: 50px;
+            color: white;
+            background-color: #303133;
+            z-index: 3;
+        }
+
+        /* 表格样式 */
+        .el-table th{
+            background-color: #EBEEF5;
+        }
+        .collapse-item-column-list .el-table td, .collapse-item-column-list .el-table th{
+            padding:0px;
+        }
+        .collapse-item-column-list .el-table td:first-child .cell,
+        .collapse-item-column-list .el-table .cell{
+            padding-left: 0px;
+            padding-right: 0px;
+        }
+
+        /* 表格内的下拉控件 */
+        .collapse-item-column-list .el-table .el-select{
+            width: 100%;
+        }
+
+        /* 去除前后border */
+        .el-collapse{
+            border-top: 0px;
+            border-bottom: 0px;
+        }
+        .el-collapse-item:first-child{
+            border-top: 0px;
+        }
+        .el-collapse-item:last-child .el-collapse-item__header{
+            border-bottom: 0px;
+        }
+
+        .el-radio-button--mini .el-radio-button__inner{
+            padding: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <header>
+        <label v-text="table.name"></label><label style="margin-left: 10px;color: #8c939d;" v-text="table.url"></label>
+    </header>
+    <el-collapse v-model="collapseActiveNames" @change="handleCollapseChange">
+        <el-collapse-item title="表全局配置" name="1">
+            <div>控制反馈：通过界面样式和交互动效让用户可以清晰的感知自己的操作；</div>
+            <div>页面反馈：操作后，通过页面元素的变化清晰地展现当前状态。</div>
+        </el-collapse-item>
+        <el-collapse-item class="collapse-item-column-list" title="表字段" name="2">
+            <el-table border :data="columnList">
+                <el-table-column header-align="center" align="center" label="db编码">
+                    <template slot-scope="scope">
+                        <el-input size="mini" clearable v-model="scope.row.code" placeholder="db编码"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" align="center" label="编码">
+                    <template slot-scope="scope">
+                        <el-input size="mini" clearable v-model="scope.row.codeHump" placeholder="编码"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" align="center" label="名称">
+                    <template slot-scope="scope">
+                        <el-input size="mini" clearable v-model="scope.row.name" placeholder="名称"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" label="类型" >
+                    <template slot-scope="scope">
+                        <el-select size="mini" v-model="scope.row.type" clearable placeholder="字段类型">
+                            <el-option v-for="item in fieldTypeList" :key="'query_type_'+item.id" :label="item.name" :value="item.id"></el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" prop="date" label="控件" >
+                    <template slot-scope="scope">
+                        <el-select size="mini" v-model="scope.row.controlId" clearable placeholder="请选择控件">
+                            <el-option v-for="item in controlList" :key="'query_control_'+item.id" :label="item.name" :value="item.id">
+                                <span style="float: left" v-text="item.name"></span>
+                                <span style="float: right; color: #8492a6; font-size: 13px" v-text="item.id"></span>
+                            </el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" align="center" label="提示">
+                    <template slot-scope="scope">
+                        <el-input size="mini" clearable v-model="scope.row.placeholder" placeholder="请输入placeholder"></el-input>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" align="center" width="100" label="功能">
+                    <template slot-scope="scope">
+                        <el-button size="mini" type="warning" icon="el-icon-copy-document" circle ></el-button>
+                        <el-button size="mini" type="danger" icon="el-icon-delete" circle ></el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-collapse-item>
+        <el-collapse-item title="查询页面配置" name="3">
+            <el-table size="mini" :data="columnList" stripe tooltip-effect="dark" >
+                <!--<el-table-column type="selection" width="40"></el-table-column>-->
+                <el-table-column header-align="center" align="center" label="db/编码/名称">
+                    <template slot-scope="scope">
+                        <div  v-text="scope.row.code+' / '+scope.row.codeHump+' / '+scope.row.name"></div>
+                    </template>
+                </el-table-column>
+                <el-table-column header-align="center" align="left" label="查询条件">
+                    <el-table-column header-align="center" align="center" width="35" label="有">
+                        <template slot-scope="scope">
+                            <el-checkbox v-model="scope.row.form.has"></el-checkbox>
+                        </template>
+                    </el-table-column>
+                    <el-table-column header-align="center" align="left" label="功能">
+                        <template slot-scope="scope">
+                            <div v-show="scope.row.form.has">
+                                <el-checkbox v-model="scope.row.form.required">必填</el-checkbox>
+                                <el-checkbox v-model="scope.row.form.clearable">清空</el-checkbox>
+                                <el-checkbox v-model="scope.row.form.disabled">禁用</el-checkbox>
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+
+
+                <el-table-column header-align="center" align="left" label="列表">
+                    <el-table-column header-align="center" align="center" width="35" label="有">
+                        <template slot-scope="scope">
+                            <el-checkbox v-model="scope.row.row.has"></el-checkbox>
+                        </template>
+                    </el-table-column>
+                    <el-table-column header-align="center" align="left" label="功能">
+                        <template slot-scope="scope">
+                            <div v-show="scope.row.row.has">
+                                <el-checkbox v-model="scope.row.row.overflowTooltip">列不换行</el-checkbox>
+                                <el-radio-group v-model="scope.row.row.fixed" size="mini">
+                                    <el-radio-button label="false">NO</el-radio-button>
+                                    <el-radio-button label="left">左固定</el-radio-button>
+                                    <el-radio-button label="right">右固定</el-radio-button>
+                                </el-radio-group>
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table-column>
+            </el-table>
+            <el-form size="small" :inline="true" label-width="85px" class="form-query">
+
+                <el-form-item v-for="(field,fieldIndex) in columnList" :key="'show_query_field_'+fieldIndex+'_'+field.code" :label="field.name">
+
+                    <!-- 输入框 文本 -->
+                    <label v-show="field.controlId===0" v-html="field.value||'无控件，显示值'"></label>
+
+                    <!-- 输入框 文本 -->
+                    <el-input v-show="field.controlId===1" v-model="field.value1" :clearable="field.form.clearable" :placeholder="field.placeholder||field.name||''" ></el-input>
+                    <!-- 输入框 多行文本 -->
+                    <el-input v-show="field.controlId===2" v-model="field.value2" :clearable="field.form.clearable" :placeholder="field.placeholder||field.name" type="textarea" :rows="2" ></el-input>
+
+                    <!-- 输入框 数字 -->
+                    <el-input-number v-show="field.controlId===3" v-model="field.value3" :clearable="field.form.clearable" :placeholder="field.placeholder||field.name" controls-position="right" :min="1" :max="99999999" ></el-input-number>
+
+                    <!-- 下拉框 单选 -->
+                    <el-select v-show="field.controlId===4" v-model="field.value4" :clearable="field.clearable" :placeholder="field.placeholder||field.name" filterable >
+                        <el-option v-for="item in field.options||[]" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                    </el-select>
+                    <!-- 下拉框 多选 -->
+                    <el-select v-show="field.controlId===5" v-model="field.value5" :clearable="field.clearable" :placeholder="field.placeholder||field.name" multiple filterable >
+                        <el-option v-for="item in field.options||[]" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                    </el-select>
+
+                    <!-- 年月日  -->
+                    <el-date-picker v-show="field.controlId===6" v-model="field.value6" :clearable="field.form.clearable" :placeholder="field.placeholder||field.name" type="date"></el-date-picker>
+                    <!-- 年月日框 范围 -->
+                    <el-date-picker v-show="field.controlId===7" v-model="field.value7" :clearable="field.form.clearable" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束"></el-date-picker>
+                    <!-- 时分秒 -->
+                    <el-time-picker v-show="field.controlId===8" v-model="field.value8" :clearable="field.form.clearable" :placeholder="field.placeholder||field.name"></el-time-picker>
+                    <!-- 时分秒 范围 -->
+                    <el-time-picker v-show="field.controlId===9" v-model="field.value9" :clearable="field.form.clearable" is-range range-separator="至" start-placeholder="开始" end-placeholder="结束" ></el-time-picker>
+
+                </el-form-item>
+
+                <el-form-item>
+                    <el-button plain type="primary"><span v-text="'查询'"></span></el-button>
+                    <el-button plain type="warning" v-show="columnList.length>0"><span v-text="'重置'"></span></el-button>
+                </el-form-item>
+            </el-form>
+            <el-table size="mini" border :data="[]" >
+
+                <el-table-column header-align="center" align="center" type="index" width="50" label="#"></el-table-column>
+                <!--<el-table-column v-if="data.selection" type="selection" width="55"></el-table-column>-->
+
+                <el-table-column header-align="center" align="center" v-for="(field,fieldIndex) in columnList" :key="'a_'+fieldIndex" :fixed="field.row.fixed" :show-overflow-tooltip="field.row.overflowTooltip" :prop="field.code" :label="field.name"></el-table-column>
+            </el-table>
+        </el-collapse-item>
+        <el-collapse-item title="编辑页面配置" name="4">
+            <div>用户决策：根据场景可给予用户操作建议或安全提示，但不能代替用户进行决策；</div>
+            <div>结果可控：用户可以自由的进行操作，包括撤销、回退和终止当前操作等。</div>
+        </el-collapse-item>
+        <el-collapse-item title="代码结果" name="5">
+            <el-tabs type="border-card">
+                <el-tab-pane label="页面">页面</el-tab-pane>
+                <el-tab-pane label="Controller">Controller</el-tab-pane>
+                <el-tab-pane label="Service">Service</el-tab-pane>
+                <el-tab-pane label="ServiceImpl">ServiceImpl</el-tab-pane>
+                <el-tab-pane label="manager">manager</el-tab-pane>
+                <el-tab-pane label="managerImpl">managerImpl</el-tab-pane>
+                <el-tab-pane label="mapper">mapper</el-tab-pane>
+                <el-tab-pane label="mapper.xml">mapper.xml</el-tab-pane>
+                <el-tab-pane label="其它"></el-tab-pane>
+            </el-tabs>
+        </el-collapse-item>
+    </el-collapse>
+</div>
+
+<!-- 引入组件库 -->
+<script src="/element-ui/vue.js"></script>
+<script src="/element-ui/index.js"></script>
+<script src="/element-ui/axios.js"></script>
+<script>
+
+    const vm = new Vue({
+        el: '#app',
+        data() {
+            return {
+                collapseActiveNames: ['2'],
+                controlList:[],
+                fieldTypeList:[],
+
+                table:{},
+                columnList:[],
+            }
+        },
+        mounted() {
+            this.init();
+
+            this.table=JSON.parse(localStorage.getItem("table-data"));
+            axios.post("/table?columnList", {
+                action:'columnList',
+                url: this.table.url,
+                username: this.table.username,
+                password: this.table.password,
+                tableCode:this.table.name
+
+            }).then(result => {
+                let data = result.data || {};
+
+                this.columnList = (data.data||[]).map(item=>{
+                    item.controlId=({101:1,102:3,103:1,105:3})[item.type];
+
+                    if(item.optionList){
+                        //下拉框
+                        item.controlId=4;
+                    }
+
+                    // 页面字段
+                    item.form={
+                        has:true,
+                        clearable:true,
+                    };
+
+                    item.row={
+                        has:true,
+                        fixed:false,
+                        overflowTooltip:false,
+                    };
+
+                    return item;
+                });
+
+            }).catch(err=>{
+
+            });
+
+        },
+        methods: {
+            handleCollapseChange(val) {
+                console.log(val);
+            },
+            init() {
+                axios.get( "/json/control.json").then((response) => {
+                    this.controlList = response.data || [];
+                });
+                axios.get("/json/fieldType.json").then((response) => {
+                    console.log('fieldType',response,response.data.data);
+                    this.fieldTypeList = response.data || [];
+                });
+            },
+            handleAddRow() {
+                this.data.fieldList.push({});
+            },
+            handleCopyRow(even, row, index) {
+                this.data.fieldList.splice(index + 1, 0, JSON.parse(JSON.stringify(row)));
+            },
+            handleDelRow(even, row, index) {
+                this.data.fieldList.splice(index, 1);
+            },
+        }
+    });
+
+</script>
+</body>
+</html>

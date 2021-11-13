@@ -1,0 +1,599 @@
+<!-- 引入样式 -->
+<link th:fragment="style" rel="stylesheet" href="/static/lib/element-ui/index.css">
+<style th:fragment="style" type="text/css">
+    ::-webkit-scrollbar-track-piece { /*滚动条凹槽的颜色，还可以设置边框属性*/
+        background-color:#f8f8f8/*f8f8f8*/;
+    }
+    ::-webkit-scrollbar {/*滚动条的宽度*/
+        width:6px;
+        height:9px;
+    }
+    ::-webkit-scrollbar-thumb {/*滚动条的设置7FD93C*/
+        background-color:#ddd;
+        background-clip:padding-box;
+        border-radius: 20px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+    }
+
+    html,body,#app{
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+
+
+    .el-drawer__container:focus,
+    .el-drawer:focus {
+        outline: 0;
+    }
+
+    .el-table {
+        margin-top: 5px;
+    }
+
+    .el-table .el-table__header tr th {
+        /* #f5f7fa */
+        background-color: #f5f7fa;
+        font-size: 14px;
+        color: #606266;
+    }
+
+    .el-dialog__body {
+        padding: 15px 20px 0;
+    }
+
+    .deleted{
+        display: inline-block;
+    }
+    .deleted .el-checkbox{
+        margin-left: 0;
+        margin-right: 10px;
+    }
+    .deleted .el-checkbox.is-bordered+.el-checkbox.is-bordered {
+        margin-left: 0px;
+    }
+    .deleted .el-checkbox.is-bordered.el-checkbox--small {
+        padding: 5px 8px;
+    }
+    .deleted .el-checkbox__label{
+        padding-left: 5px;
+    }
+</style>
+
+<!-- 引入组件库 -->
+<script th:fragment="script" src="/static/lib/vue.js"></script>
+<script th:fragment="script" src="/static/lib/axios.js"></script>
+<script th:fragment="script" src="/static/lib/element-ui/index.js"></script>
+<script th:fragment="script" src="/static/js/template.js"></script>
+<script th:fragment="script" src="/static/js/silence.utils.v1.js"></script>
+<script th:fragment="script" src="/static/js/obj.table.js"></script>
+<script th:fragment="script">
+
+    Vue.prototype.dataListToMap = function (fields, key) {
+
+        (fields || ['state', 'type']).forEach(field => {
+
+            const map = this[field + 'Map'];
+
+            if (!map) {
+                return true;
+            }
+
+            this[field + 'List'].forEach(item => {
+
+                map[item[key || 'key']] = item;
+            });
+        });
+    };
+
+    /**
+     * 初始化数据
+     */
+    function initData(obj) {
+
+        obj = obj || {};
+
+        const init = {
+            fullscreenLoading: false,
+            queryParam: {
+                pageNumber: 1, pageLength: 50,
+                deletedArr: [0]
+            },
+            queryResult: {
+                count: 0,
+                data: []
+            }
+        };
+
+        for (let key in init) {
+            let paramValue = obj[key];
+            let initValue = init[key];
+            if (typeof paramValue === 'undefined') {
+                obj[key] = initValue;
+            }
+        }
+
+        return obj;
+    }
+
+    /**
+     * 初始化查询接口
+     * @param options
+     * @return {Function}
+     */
+    function initHandleQuery(options) {
+
+        let {url = 'index', reset, setParams, setData, conversionFieldList} = options || {};
+
+        if (!conversionFieldList) {
+            conversionFieldList = ['state', 'type'];
+        }
+
+        return function (action, val) {
+            const queryParam = this.queryParam;
+            const queryResult = this.queryResult;
+
+            switch (action) {
+                // 重置
+                case 'reset': {
+
+                    if (reset) {
+                        reset(queryParam);
+                        return;
+                    }
+
+                    let not = {
+                        pageLength: true,
+
+                    };
+                    for (let key in queryParam) {
+
+                        if (key === 'deletedArr') {
+                            queryParam.deletedArr = [0];
+                            continue;
+                        }
+                        if (not[key]) {
+                            continue;
+                        }
+
+                        // 获取值
+                        let val = queryParam[key];
+                        // 判断值类型
+                        if (typeof val === 'object') {
+                            if (val instanceof Object) {
+                                queryParam[key] = {};
+                            } else if (val instanceof Array) {
+                                queryParam[key] = [];
+                            }
+                            continue;
+                        }
+                        queryParam[key] = null;
+                    }
+                    queryParam.pageNumber = 1;
+                    return;
+                }
+                case 'size': {
+                    queryParam.pageLength = val;
+                    break;
+                }
+                // 默认查询
+                default: {
+                    if (typeof action === 'number' && action > 0) {
+                        queryParam.pageNumber = action;
+                    }
+                    break;
+                }
+            }
+
+            if(queryParam.deletedArr){
+                if (queryParam.deletedArr.length === 1) {
+                    queryParam.deleted = queryParam.deletedArr[0];
+                } else {
+                    queryParam.deleted = null;
+                }
+            }
+
+            //清空数据
+            queryResult.data = [];
+
+            //参数设置
+            let axiosParam = null;
+            try {
+                if(setParams){
+                    axiosParam=setParams(queryParam);
+                }else {
+                    axiosParam = SilenceUtils.getUrlParams(queryParam);
+                }
+            } catch (e) {
+                this.$message({showClose: true, type: 'error', message: e});
+                return;
+            }
+
+            //请求服务数据
+            this.fullscreenLoading = true;
+            axios.post(url, axiosParam).then(({data: result} = res) => {
+
+                //处理请求回来的数据
+                (result.data || []).forEach(item => {
+
+
+                    item.updateTimeStr = SilenceUtils.getDateTimeStr(item.updateTime, "yyyy-MM-dd HH:mm:ss");
+                    // 转换数据
+                    conversionFieldList.forEach(field => {
+
+                        const map = this[field + 'Map'];
+
+                        if (!map) {
+                            return true;
+                        }
+
+                        let fieldValue = item[field];
+                        item[field + 'Str'] = (map[fieldValue]||{}).value || fieldValue;
+                    });
+                });
+
+                setData && setData(result);
+                //返回数据
+                return result;
+            }).then((result => {
+                //表格数据
+                queryResult.data = result.data || [];
+                queryResult.count = result.count || 0;
+                //判断请求服务结果
+                if (!result.success) {
+                    this.$message({showClose: true, type: 'warning', message: result.message || result.code});
+                }
+            })).catch(err => {
+                //表格数据，如果进方法时已经清空，可省略此行
+                queryResult.data = [];
+                queryResult.count = 0;
+                //发生错误时的提示框
+                this.$message({showClose: true, type: 'error', message: err});
+            }).finally(() => {
+                //最终总会执行的函数，没有参数
+                this.fullscreenLoading = false;
+            });
+        }
+    }
+
+    /**
+     * 初始化查询接口
+     * @param options
+     * @return {Function}
+     */
+    function initHandleQuery2(options) {
+
+        let {url = 'index', reset, setParams, setData, conversionFieldList} = options || {};
+
+        if (!conversionFieldList) {
+            conversionFieldList = ['state', 'type'];
+        }
+
+        return function (action, val) {
+            const queryParam = this.queryParam;
+            const queryResult = this.queryResult;
+
+            switch (action) {
+                // 重置
+                case 'reset': {
+
+                    if (reset) {
+                        reset(queryParam);
+                        return;
+                    }
+
+                    let not = {
+                        pageLength: true,
+
+                    };
+                    for (let key in queryParam) {
+
+                        if (key === 'deletedArr') {
+                            queryParam.deletedArr = [0];
+                            continue;
+                        }
+                        if (not[key]) {
+                            continue;
+                        }
+
+                        // 获取值
+                        let val = queryParam[key];
+                        // 判断值类型
+                        if (typeof val === 'object') {
+                            if (val instanceof Object) {
+                                queryParam[key] = {};
+                            } else if (val instanceof Array) {
+                                queryParam[key] = [];
+                            }
+                            continue;
+                        }
+                        queryParam[key] = null;
+                    }
+                    queryParam.pageNumber = 1;
+                    return;
+                }
+                case 'size': {
+                    queryParam.pageLength = val;
+                    break;
+                }
+                // 默认查询
+                default: {
+                    if (typeof action === 'number' && action > 0) {
+                        queryParam.pageNumber = action;
+                    }
+                    break;
+                }
+            }
+
+            if(queryParam.deletedArr){
+                if (queryParam.deletedArr.length === 1) {
+                    queryParam.deleted = queryParam.deletedArr[0];
+                } else {
+                    queryParam.deleted = null;
+                }
+            }
+
+            //清空数据
+            queryResult.data = [];
+
+            //参数设置
+            let axiosParam = null;
+            try {
+                if(setParams){
+                    axiosParam=setParams(queryParam);
+                }else {
+                    axiosParam = SilenceUtils.getUrlParams(queryParam);
+                }
+            } catch (e) {
+                this.$message({showClose: true, type: 'error', message: e});
+                return;
+            }
+
+            // url
+            let urlCount = url;
+            if (urlCount.indexOf('?') === -1) {
+                urlCount += '?count'
+            } else {
+                urlCount += '&count'
+            }
+            let urlList = url;
+            if (urlList.indexOf('?') === -1) {
+                urlList += '?list'
+            } else {
+                urlList += '&list'
+            }
+            // axiosParams
+            let axiosParamCount = null;
+            let axiosParamList = null;
+            if (typeof axiosParam === 'object') {
+                axiosParamCount = JSON.parse(JSON.stringify(axiosParam));
+                axiosParamCount.action = 'count';
+
+                axiosParamList = JSON.parse(JSON.stringify(axiosParam));
+            } else {
+                axiosParamCount = axiosParam + '&action=count';
+                axiosParamList = axiosParam;
+            }
+
+
+            // 请求服务数据count
+            axios.post(urlCount, axiosParamCount).then(({data: result} = res) => {
+                //表格数据
+                let data=result.data;
+                if(typeof data ==='object'){
+                    data=data.length;
+                }
+                queryResult.count = data;
+                //判断请求服务结果
+                if (!result.success) {
+                    this.$message({showClose: true, type: 'warning', message: result.message || result.code});
+                }
+            }).catch(err => {
+                //表格数据，如果进方法时已经清空，可省略此行
+                queryResult.count = 0;
+                //发生错误时的提示框
+                this.$message({showClose: true, type: 'error', message: err});
+            }).finally(() => {
+                //最终总会执行的函数，没有参数
+            });
+
+            //请求服务数据list
+            this.fullscreenLoading = true;
+            axios.post(urlList, axiosParamList).then(({data: result} = res) => {
+
+                //处理请求回来的数据
+                (result.data || []).forEach(item => {
+
+
+                    item.updateTimeStr = SilenceUtils.getDateTimeStr(item.updateTime, "yyyy-MM-dd HH:mm:ss");
+                    // 转换数据
+                    conversionFieldList.forEach(field => {
+
+                        const map = this[field + 'Map'];
+
+                        if (!map) {
+                            return true;
+                        }
+
+                        let fieldValue = item[field];
+                        item[field + 'Str'] = map[fieldValue].value || fieldValue;
+                    });
+                });
+
+                setData && setData(result);
+                //返回数据
+                return result;
+            }).then((result => {
+                //表格数据
+                queryResult.data = result.data || [];
+                queryResult.useMillisecond=result.useMillisecond||0;
+                //判断请求服务结果
+                if (!result.success) {
+                    this.$message({showClose: true, type: 'warning', message: result.message || result.code});
+                }
+            })).catch(err => {
+                //表格数据，如果进方法时已经清空，可省略此行
+                queryResult.data = [];
+                //发生错误时的提示框
+                this.$message({showClose: true, type: 'error', message: err});
+            }).finally(() => {
+                //最终总会执行的函数，没有参数
+                this.fullscreenLoading = false;
+            });
+        }
+    }
+
+    /**
+     * 初始化编辑接口，复杂的编辑，请不要调用此方法
+     * @param options
+     * @return {Function}
+     */
+    function initHandleEdit(options) {
+
+        let {url = 'edit', reset, setParams, setData, conversionFieldList} = options || {};
+
+        return function(action,value, index) {
+
+            //获取要操作的数据
+            const edit = this.edit;
+            const sourceData = edit.sourceData || {};
+            const data = edit.data || {};
+
+            switch (action) {
+                //打开
+                case 'open': {
+                    let title = '新增';
+
+                    edit.sourceData = value;
+                    SilenceUtils.setData(this.edit.data,JSON.parse(JSON.stringify(value)));
+                    if (edit.sourceData.id) {
+                        title = '更新  ' + (data.code || '') + ' ' + (data.name || '');
+                    }
+
+                    edit.title = title;
+                    edit.show = true;
+
+                    return;
+                }
+                //关闭
+                case 'close': {
+                    edit.show = false;
+                    edit.title = '';
+                    edit.sourceData = null;
+                    for (let key in edit.data) {
+                        edit.data[key] = null;
+                    }
+                    this.$refs[edit.formref].clearValidate();
+
+                    return;
+                }
+                //重置
+                case 'reset': {
+                    this.$refs[edit.formref].resetFields();
+                    return;
+                }
+                case 'submit':{
+                    // 放行
+                    break;
+                }
+                default:{
+                    return;
+                }
+            }
+
+            //----------【提交数据功能】-----------------------------------------
+
+            //检查数据
+            let checkSuccess = true;
+            this.$refs[edit.formref].validate((valid) => {
+                checkSuccess = valid;
+            });
+            if (!checkSuccess) {
+                return;
+            }
+
+            //获取参数（发送给后台的数据）
+            const params = {};
+
+            Object.keys(data).forEach(item => {
+                let value = data[item];
+                let sourceValue = sourceData[item];
+
+                if (value !== sourceValue) {
+                    params[item] = value;
+                }
+            });
+
+            if (Object.keys(params).length == 0) {
+                this.$message({showClose: true, type: 'warning', message: "没有任何更改"});
+                return;
+            }
+
+            // 其它参数
+            params.id=sourceData.id||null;
+
+            this.fullscreenLoading = true;
+
+            axios.post(url, SilenceUtils.getUrlParams(params)).then(({data:result}=res) => {
+
+                if (!result.success) {
+
+                    this.$message({
+                        showClose: true,
+                        type: 'warning',
+                        message: result.message || (result.error || {}).msg || '操作失败'
+                    });
+                    return;
+                }
+
+                //重新查询数据
+                this.handleQuery();
+                //关闭模态框
+                edit.show = false;
+                //提示信息
+                this.$message({showClose: true, type: 'success', message: '操作成功' });
+
+            }).catch(err => {
+                //发生错误时的提示框
+                this.$message({showClose: true, type: 'error', message: err});
+            }).finally(() => {
+                //最终总会执行的函数，没有参数
+                this.fullscreenLoading = false;
+            });
+        }
+    }
+</script>
+
+<!-- 查询重置按钮 -->
+<el-form-item label=" " th:fragment="formItemQueryReset">
+    <el-button type="primary" plain @click="handleQuery(1)" v-loading.fullscreen.lock="fullscreenLoading"><span v-text="'查询'"></span></el-button>
+    <el-button type="warning" plain @click="handleQuery('reset')"><span v-text="'重置'"></span></el-button>
+</el-form-item>
+
+<!-- 查询重置按钮 -->
+<el-form-item label=" " th:fragment="formItemQueryReset1">
+    <el-checkbox-group v-model="queryParam.deletedArr" size="small" class="deleted" >
+        <el-checkbox :label="0" border ><span v-text="'有效'"></span></el-checkbox>
+        <el-checkbox :label="1" border ><span v-text="'已删除'"></span></el-checkbox>
+    </el-checkbox-group>
+    <el-button type="primary" plain @click="handleQuery(1)" v-loading.fullscreen.lock="fullscreenLoading"><span v-text="'查询'"></span></el-button>
+    <el-button type="warning" plain @click="handleQuery('reset')"><span v-text="'重置'"></span></el-button>
+</el-form-item>
+
+<!-- 编辑弹框脚部 -->
+<div slot="footer" class="dialog-footer"  th:fragment="dialogFooterEdit">
+    <el-button size="small" type="primary" @click="handleEdit('submit')"><span v-text="'保存'"></span></el-button>
+    <el-button size="small" type="warning" @click="handleEdit('reset')"><span v-text="'重置'"></span></el-button>
+    <el-button size="small" @click="edit.show=false"><span v-text="'取消'"></span></el-button>
+</div>
+
+<!-- 分页 -->
+<div class="block" th:fragment="pagination1">
+    <el-pagination
+            :hide-on-single-page="false" layout="total, sizes, prev, pager, next, jumper"
+            :page-sizes="[10,20,50,100, 200 , 500]"
+            :page-size="queryParam.pageLength" :current-page="queryParam.pageNumber" :total="queryResult.count"
+            @size-change="val=>handleQuery('size',val)" @current-change="handleQuery">
+    </el-pagination>
+</div>

@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "code": "web",
+    "name": "WEB",
+    "dbmultiple": true,
+    "javaPackages": "com.web",
+    "include": {
+      "base": "",
+      "style": "../template/index_style_inc.jsp",
+      "script": "../template/index_script_inc.jsp"
+    }
+  }
+]

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" >
+<head>
+    <meta charset="UTF-8">
+    <title>易开发</title>
+    <div th:replace="common/index::style"></div>
+    <style type="text/css">
+        #app{
+
+        }
+        .el-header{
+            background-color: rgb(84, 92, 100);
+            align-items: center;
+            display: flex;
+        }
+        .el-main{
+            margin: 0;
+            padding: 0;
+        }
+        .el-footer{
+            height: 25px !important;
+            align-items: center;
+            display: flex;
+            justify-content: center;
+            color: #ddd;
+            font-size: 12px;
+        }
+
+        .el-footer .author {
+            margin: 0 10px;
+            padding: 0 10px;
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+            border-radius: 10px;
+            /*box-shadow: 1px 3px 1px #ddd;*/
+        }
+    </style>
+</head>
+<body>
+<el-container id="app">
+    <el-header>
+        <el-menu :default-active="menus[1].id+''" class="el-menu-demo" mode="horizontal"
+                 @select="handleMenuSelect" background-color="#545c64"
+                text-color="#fff" active-text-color="#ffd04b">
+            <template v-for="item in menus" >
+                <el-menu-item v-if="!item.nodes"  :index="item.id+''" @click="event=>handleMenuClick(event,item)" >{{item.name}}</el-menu-item>
+                <el-submenu v-else :index="item.name" >
+                    <template slot="title">{{item.name}}</template>
+                    <el-menu-item v-for="node in item.nodes" :key="'menu'+node.id" :index="item.name+'/'+node.name" @click="event=>handleMenuClick(event,node)" >{{node.name}}</el-menu-item>
+                </el-submenu>
+            </template>
+        </el-menu>
+    </el-header>
+    <el-main>
+        <!-- https://blog.csdn.net/qq_16656959/article/details/89279439 -->
+        <iframe v-show="mainSrc" frameborder="0" width="100%" height="100%" style="vertical-align:top;" :src="mainSrc"></iframe>
+    </el-main>
+    <el-footer>
+        <span v-text="'What you see is only a tenth of what I thought !'.split(' ').reverse().join(' ')"></span>
+         <span class="author">静默 - agui</span>
+        <span>You can copy products, but you can't copy ideas !</span>
+    </el-footer>
+</el-container>
+<div th:replace="common/index::script"></div>
+<script>
+    const vm = new Vue({
+        el: '#app',
+        data(){
+            return {
+                mainSrc:'',
+                menus:[
+                    {id:1,name:'首页',url:'/first'},//target:'_blank'
+                    {id:2,name:'数据库/代码生成',url:'/database/index'},
+                    {id:3,name:'API',
+                        nodes:[
+                            {id:301,name:'VUE3',url:'https://v3.cn.vuejs.org/api/'},
+                            {id:302,name:'VUE',url:'https://cn.vuejs.org/v2/api/'},
+                            {id:303,name:'Element',url:'https://element.eleme.cn/#/zh-CN/component/form'},
+                        ]
+                    },
+                ]
+            }
+        },
+        created() {
+
+        },
+        watch: {
+
+        },
+        computed: {
+
+        },
+        mounted(){
+            this.mainSrc=this.menus[1].url;
+        },
+        methods: {
+            handleMenuSelect(key, keyPath) {
+                console.log(key, keyPath);
+            },
+            handleMenuClick(val,node){
+                if(node.target==='_blank'){
+                    window.open(node.url);
+                    return;
+                }
+                this.mainSrc=node.url;
+            }
+        }
+    });
+</script>
+</body>
+</html>

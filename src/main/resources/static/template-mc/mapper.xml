@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="<%=config.javaPackages.mapperXml%>.<%=table.codeHumpAll%>Mapper">
+
+    <!-- table映射实体对象 -->
+    <resultMap id="RM_<%=table.codeHumpAll%>" type="<%=table.codeHumpAll%>"><% columns.forEach(item=>{ %>
+        <result property="<%=item.codeHump%>" column="<%=item.code%>"/><% })%>
+    </resultMap>
+
+    <!-- 返回字段 -->
+    <sql id="sql_select_column">
+        <%= columns.map(item=>item.code).join() %>
+    </sql>
+
+    <!-- 根据ID查询 -->
+    <select id="selectByIds" resultMap="RM_<%=table.codeHumpAll%>" parameterType="java.util.Map">
+        SELECT <include refid="sql_select_column"/>
+        FROM `<%=table.codeSql%>` WHERE id IN <foreach collection="ids" item="item" open="(" close=")" separator=",">#{item}</foreach> ;
+    </select>
+
+    <!-- 查询数据条数   -->
+    <select id="selectCount" resultType="long" parameterType="<%=table.codeHumpAll%>Query">
+        SELECT COUNT(1) <include refid="sql_select_from"/>
+    </select>
+    <!-- 查询数据   -->
+    <select id="selectList" resultMap="RM_<%=table.codeHumpAll%>" parameterType="<%=table.codeHumpAll%>Query">
+        SELECT
+        <include refid="sql_select_column"/>
+        <include refid="sql_select_from"/>
+        <if test="sortName != null  ">
+            ORDER BY ${sortName} ${sortOrder}
+        </if>
+        LIMIT #{startRecord} , #{pageSize}
+    </select>
+    <sql id="sql_select_from">
+        FROM `<%=table.codeSql%>`
+        <where><% columns.forEach(item=>{ %><%if(item.typeJava==='String'){%>
+            <if test=" <%=item.codeHump%> != null and <%=item.codeHump%> != '' "> AND <%=item.codeSql || item.code%> = #{<%=item.codeHump%>} </if><%}%><%if(item.typeJava==='Integer'){%>
+            <if test=" <%=item.codeHump%> != null "> AND <%=item.codeSql || item.code%> = #{<%=item.codeHump%>} </if><%}%><%})%>
+        </where>
+    </sql>
+
+    <!-- 新增数据 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="java.util.List">
+        INSERT INTO `<%=table.codeSql%>` (
+            <%=columns.filter(item=>item.codeHump!=='id' && !fieldMap.create[item.codeHump] && !fieldMap.update[item.codeHump] && !fieldMap.isDelete[item.codeHump]).map(item=>item.codeSql||item.code).join(' , ') %> ,
+            <%=columns.filter(item=>fieldMap.creator[item.codeHump]|| fieldMap.updater[item.codeHump]).map(item=>item.codeSql||item.code).join(' , ') %> ,
+            <%=columns.filter(item=>fieldMap.createTime[item.codeHump]|| fieldMap.updateTime[item.codeHump]).map(item=>item.codeSql||item.code).join(' , ') %><%=columns.filter(item=>fieldMap.isDelete[item.codeHump]).map(item=>' , '+(item.codeSql||item.code)).join('') %>
+        )VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            <%=columns.filter(item=>item.codeHump!=='id' && !fieldMap.create[item.codeHump] && !fieldMap.update[item.codeHump] && !fieldMap.isDelete[item.codeHump]).map(item=>'#{item.'+item.codeHump+'}').join(' , ') %> ,
+            <%=columns.filter(item=>fieldMap.creator[item.codeHump]|| fieldMap.updater[item.codeHump]).map(item=>'#{item.'+item.codeHump+'}').join(' , ') %> ,
+            <%=columns.filter(item=>fieldMap.createTime[item.codeHump]|| fieldMap.updateTime[item.codeHump]).map(item=>'UNIX_TIMESTAMP(NOW(3)) * 1000').join(' , ') %><%=columns.filter(item=>fieldMap.isDelete[item.codeHump]).map(item=>' , 0 ').join('') %>
+            )
+        </foreach>
+    </insert>
+
+    <!-- 更新数据 -->
+    <update id="update" parameterType="java.util.List">
+        <foreach collection="list" item="item" close=";" separator=";">
+            UPDATE `<%=table.codeSql%>` SET<% columns.filter(item=>item.codeHump!=='id' && !fieldMap.create[item.codeHump] && !fieldMap.update[item.codeHump]).forEach(item=>{ %>
+            <if test=" item.<%=item.codeHump%> != null "> <%=item.codeSql || item.code%> = #{item.<%=item.codeHump%>} , </if><%})%>
+            <%=columns.filter(item=>fieldMap.update[item.codeHump]).map(item=>item.code+' = #{item.'+item.codeHump+'}').join(' , ') %>,
+            <%=columns.filter(item=>fieldMap.updateTime[item.codeHump]).map(item=>item.code+' = UNIX_TIMESTAMP(NOW(3)) * 1000').join(' , ') %>
+            WHERE <%=columns.filter(item=>(({id:true,warehouseId:true}))[item.codeHump]).map(item=>item.code+' = #{item.'+item.codeHump+'}').join(' AND ') %>
+        </foreach>
+    </update>
+
+</mapper>

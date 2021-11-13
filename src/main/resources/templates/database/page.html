@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>页面</title>
+    <div th:replace="common/index::style"></div>
+    <style type="text/css">
+        html, body, #app {
+            margin: 0px;
+            height: 100%;
+        }
+        body{
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #app {
+
+        }
+        .app-header{
+            position: absolute;
+            right: 100px;
+            height: 35px;
+            line-height: 35px;
+        }
+        .app-header .link-info{
+            margin: 0px 5px;
+            color: #999999;
+
+        }
+
+        .el-table [class^=el-icon]{
+            cursor: pointer;
+           font-size: 14px;
+        }
+        .el-table .column-value{
+
+        }
+        .el-table .column-value-editing{
+            display: inline-block !important;
+            white-space:normal;
+            text-overflow:clip;
+            box-sizing: border-box;
+            width: 100%;
+            padding-left: 2px;
+            padding-right: 2px;
+            text-align: left;
+        }
+        .el-table__row .el-tooltip{
+            width: 100% !important;
+        }
+        .el-tooltip__popper {
+            max-width: 500px;
+        }
+
+
+        .label-tip,
+        .el-form .el-form-item__label {
+            /*对超出内容隐藏*/
+            overflow: hidden;
+            /*显示省略符号来代表被修剪的文本*/
+            text-overflow: ellipsis;
+            /*文本不会换行，文本会在在同一行上继续，直到遇到 <br> 标签为止。*/
+            white-space: nowrap;
+        }
+        /*.el-form .el-form-item__label:hover{
+            overflow: auto;
+            text-overflow:clip;
+            white-space:normal;
+        }*/
+
+        .query-conditions-show .el-checkbox__label{
+            padding-left: 5px;
+            min-width: 110px;
+        }
+
+        .app-view,.app-coding {
+            padding-bottom: 35px;
+        }
+        .app-footer{
+            position: fixed;
+            bottom: 0px;
+            left: 0px;
+            background-color: white;
+            width: 100%;
+            padding-left: 10px;
+            box-sizing: border-box;
+            z-index: 5;
+        }
+        .app-footer>div{
+            display: inline-block;
+        }
+        .app-footer .link-info{
+            margin: 0px 5px;
+            color: #999999;
+            float: right;
+        }
+        .app-footer .el-radio-group{
+            margin: 0px 5px;
+            float: right;
+        }
+
+
+        .el-drawer__header{
+            font-size: 18px;
+            padding: 10px;
+            background-color: #999;
+            color: white;
+            margin-bottom: 0px;
+        }
+        .el-drawer__body{
+            overflow: auto;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .el-collapse{
+            padding: 10px;
+            padding-top:0px;
+            border-bottom:0px;
+        }
+        .el-collapse-item__content{
+            padding-bottom: 5px;
+        }
+        .el-collapse-item__content pre{
+            margin: 0px;
+            overflow: auto;
+        }
+
+
+        .action-btn-group{
+            position: fixed;
+            top:10px;
+            right: 10px;
+            z-index: 100;
+        }
+
+    </style>
+</head>
+<body>
+<div id="app">
+    <!--<div class="app-header">
+
+    </div>-->
+    <div class="app-footer">
+        <div  v-show="tabActiveName==='view'">
+            <div th:replace="common/index::pagination1"></div>
+        </div>
+        <el-radio-group v-model="tabActiveName" size="mini">
+            <el-radio-button label="view"><span v-text="'视图'"></span></el-radio-button>
+            <el-radio-button label="coding"><span v-text="'代码'"></span></el-radio-button>
+        </el-radio-group>
+        <div class="link-info">
+            <span v-text="params.connectionName"></span>
+            <span v-text="params.url"></span>
+            <span v-text="params.database"></span>
+        </div>
+    </div>
+    <!--<div class="action-btn-group">
+       <el-button size="small" type="danger" plain icon="el-icon-setting" style="float: right;" @click="drawer = true" ><span v-text="'配置'"></span></el-button>
+    </div>-->
+
+    <div class="app-view" v-show="tabActiveName==='view'">
+        <el-form id="elAppViewForm" size="small" :inline="true" label-width="85px" class="form-query">
+           <!-- <el-form-item v-for="item in tableInfo.columnList" :key="'q_'+item.columnName" :label="item.columnComment||item.columnNameHump">
+                <el-input clearable v-model="queryParam[item.columnName]" :placeholder="item.columnComment||item.columnName" ></el-input>
+            </el-form-item>-->
+            <el-form-item v-for="item in action.query.conditions" v-show="item.has" :key="'q_'+item.id">
+                <template>
+                    <label v-if="item.name.length<=5" slot="label" :title="item.name" v-text="item.name"></label>
+                    <el-tooltip v-else slot="label" class="item" effect="dark" :content="item.name" placement="top-start">
+                        <label v-text="item.name"></label>
+                    </el-tooltip>
+                </template>
+                <el-input clearable v-model="queryParam[item.code]" :placeholder="item.placeholder" ></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-popover placement="top-start" title="显示条件" width="500" trigger="click" >
+                    <div class="query-conditions-show">
+                        <el-button @click="handleChooseHas(action.query.conditions,2)"  type="text" ><span v-text="'反选'"></span></el-button>
+                        <el-button @click="handleChooseHas(action.query.conditions,1)" type="text" ><span v-text="'全选'"></span></el-button>
+                        <el-button @click="handleChooseHas(action.query.conditions,0)" type="text" ><span v-text="'取消全部'"></span></el-button>
+                        <br/>
+                        <el-checkbox v-for="item in action.query.conditions" :key="'qs_'+item.id+Math.random()" :checked="item.has?true:false" @change="val=>item.has=val" :label="item.name.length<=10?item.name:item.name.substring(0,9)"></el-checkbox>
+                        <br/>
+                        <el-button @click="handleChooseHas(action.query.conditions,2)"  type="text" ><span v-text="'反选'"></span></el-button>
+                        <el-button @click="handleChooseHas(action.query.conditions,1)" type="text" ><span v-text="'全选'"></span></el-button>
+                        <el-button @click="handleChooseHas(action.query.conditions,0)" type="text" ><span v-text="'取消全部'"></span></el-button>
+                    </div>
+                    <el-button size="small" slot="reference" type="text" plain style="padding-left:10px;padding-right: 10px;">
+                        <span style="color:#DCDFE6;" v-text="'查询条件'"></span>
+                        <span v-text="action.query.conditions.filter(item=>item.has).length"></span>
+                        <span v-text="'/'"></span>
+                        <span v-text="action.query.conditions.length"></span>
+                    </el-button>
+                </el-popover>
+                <el-button size="small" type="primary" plain @click="handleQuery(1)" v-loading.fullscreen.lock="fullscreenLoading"><span v-text="'查询'"></span></el-button>
+                <el-button size="small" type="warning" plain @click="handleQuery('reset')"><span v-text="'重置'"></span></el-button>
+            </el-form-item>
+            <!--<div th:replace="common/index::formItemQueryReset"></div>-->
+        </el-form>
+        <el-row id="elAppViewAction">
+            <el-button size="small" type="primary" plain @click="handleQuery(1)" v-loading.fullscreen.lock="fullscreenLoading"><span v-text="'新增'"></span></el-button>
+            <el-button size="small" type="primary" plain @click="handleQuery('reset')"><span v-text="'更新状态'"></span></el-button>
+            <el-popover placement="top-start" title="建表SQL" width="500" trigger="click"  style="float: right;" >
+                <pre style="overflow: auto;" v-text="tableInfo.createTableSql"></pre>
+                <el-button size="small" slot="reference" type="text" plain style="padding:6px 10px;">
+                    <i class="el-icon-copy-document" style="color:#ddd;font-size: 16px;" @click.stop="handleCopyCode(tableInfo.createTableSql)"></i>
+                    <span v-text="'建表SQL'"></span>
+                </el-button>
+            </el-popover>
+            <el-popover placement="top-start" title="显示列" width="500" trigger="click"  style="float: right;" >
+                <div class="query-conditions-show">
+                    <el-button @click="handleChooseHas(action.query.columns,2)"  type="text" ><span v-text="'反选'"></span></el-button>
+                    <el-button @click="handleChooseHas(action.query.columns,1)" type="text" ><span v-text="'全选'"></span></el-button>
+                    <el-button @click="handleChooseHas(action.query.columns,0)" type="text" ><span v-text="'取消全部'"></span></el-button>
+                    <br/>
+                    <el-checkbox v-for="item in action.query.columns" :key="'qs_'+item.id+Math.random()" :checked="item.has?true:false" @change="val=>item.has=val" :label="item.name.length<=10?item.name:item.name.substring(0,9)"></el-checkbox>
+                    <br/>
+                    <el-button @click="handleChooseHas(action.query.columns,2)"  type="text" ><span v-text="'反选'"></span></el-button>
+                    <el-button @click="handleChooseHas(action.query.columns,1)" type="text" ><span v-text="'全选'"></span></el-button>
+                    <el-button @click="handleChooseHas(action.query.columns,0)" type="text" ><span v-text="'取消全部'"></span></el-button>
+                </div>
+                <el-button size="small" slot="reference" type="text" plain style="padding-left:10px;padding-right: 10px;">
+                    <span style="color:#DCDFE6;" v-text="'显示列'"></span>
+                    <span v-text="action.query.columns.filter(item=>item.has).length"></span>
+                    <span v-text="'/'"></span>
+                    <span v-text="action.query.columns.length"></span>
+                </el-button>
+            </el-popover>
+        </el-row>
+        <el-table id="elAppViewTable" size="mini" border  :height="queryTableHeight" :data="queryResult.data" >
+            <el-table-column header-align="center" align="center" type="index" width="50" label="#"></el-table-column>
+            <el-table-column header-align="center" align="center" type="index" width="100" label="操作">
+                <template slot-scope="scope">
+                    <el-button size="mini" type="text" ><span v-text="'编辑'"></span></el-button>
+                    <el-button size="mini" type="text"><span v-text="'历史'"></span></el-button>
+                </template>
+            </el-table-column>
+           <!-- <el-table-column v-for="item in tableInfo.columnList" :key="'column_'+item.columnName" :prop="item.columnNameHump" :label="item.columnComment||item.columnName" ></el-table-column>-->
+            <el-table-column header-align="left" align="left" v-for="item in action.query.columns" v-if="item.has" :key="'column_'+item.id" :prop="item.codeHump" :width="item.width?item.width:''" show-overflow-tooltip >
+                <template slot="header" slot-scope="scope" >
+                    <label v-if="item.name.length<=8" :title="item.name" v-text="item.name"></label>
+                    <el-tooltip v-else class="item" effect="dark" :content="item.name" placement="top-start">
+                        <label v-text="item.name.substring(0,7)+'...'"></label>
+                    </el-tooltip>
+                </template>
+                <template slot-scope="scope">
+                    <i v-show="!scope.row.editing" class="el-icon-copy-document" style="color:#ddd;" @click="handleCopyCode(scope.row[item.codeHump])"></i>
+                    <!--<el-date-picker size="mini" v-model="scope.row[item.codeHump+'_dt']" type="datetime" placeholder="选择日期时间" default-time="00:00:00"></el-date-picker>-->
+                    <i v-show="isHasImage(scope.row,item.codeHump)" class="el-icon-picture-outline" @click="handleImage('open',scope.row[item.codeHump])" ></i>
+                    <div style="min-width: 50%;min-height: 20px;" :style="{display: scope.row[item.codeHump]?'inline':'inline-block'}"  @dblclick="event=>handleColumnDblclick(event,item.codeSql,item.codeHump,scope.row)" @blur="event=>handleColumnBlur(event,item.codeSql,item.codeHump,scope.row)" v-text="scope.row[item.codeHump]"></div>
+                </template>
+            </el-table-column>
+        </el-table>
+
+    </div>
+
+    <div class="app-coding" v-show="tabActiveName==='coding'">
+        <el-radio-group size="small" v-model="templateSelectIndex" @change="buildCode" >
+            <el-radio v-for="(item,index) in templates" :key="'template_'+item.name" border :label="index"  ><span v-text="item.name"></span></el-radio>
+        </el-radio-group>
+        <br/><br/>
+        <div v-show="hasCopyCode" >
+            <el-button size="small" type="primary" icon="el-icon-document-copy" @click="handleCopyCode()" ><span v-text="'复制代码'"></span></el-button>
+            <el-button size="small" type="primary" icon="el-icon-download" ><span v-text="'下载文件'"></span></el-button>
+            <el-button size="small" type="primary" icon="el-icon-files" ><span v-text="'全部下载'"></span></el-button>
+            <el-divider></el-divider>
+            <pre style="overflow: auto;" v-text="buildPre" ></pre>
+
+        </div>
+    </div>
+    <textarea id="currentCopyCode" style="display: none;"></textarea>
+    <el-drawer :visible.sync="drawer" direction="rtl" :wrapper-closable="true" size="800px" >
+        <div slot="title" >
+            <label v-text="'页面配置'"></label>
+        </div>
+        <el-collapse accordion >
+            <el-collapse-item title="查询条件">
+
+            </el-collapse-item>
+            <el-collapse-item title="表格显示列">
+
+            </el-collapse-item>
+            <el-collapse-item title="编辑字段">
+
+            </el-collapse-item>
+            <el-collapse-item title="建表SQL">
+                <pre v-text="tableInfo.createTableSql"></pre>
+            </el-collapse-item>
+        </el-collapse>
+    </el-drawer>
+
+    <el-drawer :visible.sync="image.show" direction="rtl" :wrapper-closable="true" size="800px" >
+        <div slot="title">
+            <label v-text="'预览图片'"></label>
+        </div>
+        <el-form size="small" :inline="false" label-width="85px" class="form-query">
+            <el-form-item label="域名">
+                 <el-input clearable v-model="image.baseUrl" placeholder="基础URL" ></el-input>
+             </el-form-item>
+        </el-form>
+        <div class="demo-image__lazy">
+            <template v-for="url in image.urls">
+                <div>
+                    <span v-text="url"></span>
+                </div>
+                <el-image :src="url"></el-image>
+                <br/>
+            </template>
+        </div>
+    </el-drawer>
+
+    <!-- 数据编辑 -->
+    <el-dialog :close-on-click-modal="false" :title="edit.title" :visible.sync="edit.show" @close="handleEdit('close')" width="630px" >
+        <el-form size="small" :inline="true" label-width="85px" class="form-query">
+            <!-- <el-form-item v-for="item in tableInfo.columnList" :key="'q_'+item.columnName" :label="item.columnComment||item.columnNameHump">
+                 <el-input clearable v-model="queryParam[item.columnName]" :placeholder="item.columnComment||item.columnName" ></el-input>
+             </el-form-item>-->
+            <el-form-item v-for="item in table.columns" :key="'q_'+item.id">
+                <template>
+                    <label v-if="item.name.length<=5" slot="label" :title="item.name" v-text="item.name"></label>
+                    <el-tooltip v-else slot="label" class="item" effect="dark" :content="item.name" placement="top-start">
+                        <label v-text="item.name"></label>
+                    </el-tooltip>
+                </template>
+                <el-input clearable v-model="queryParam[item.code]" :placeholder="item.placeholder" ></el-input>
+            </el-form-item>
+            <div th:replace="common/index::formItemQueryReset"></div>
+        </el-form>
+        <div th:replace="common/index::dialogFooterEdit"></div>
+    </el-dialog>
+</div>
+<div th:replace="common/index::script"></div>
+<script>
+    /*function toHump(name) {
+        return name.replace(/\_(\w)/g, function(all, letter){
+            return letter.toUpperCase();
+        });
+    }*/
+    document.addEventListener('click', function() {
+        let tipDiv = window.parent.tipDiv;
+        if (tipDiv) {
+            tipDiv.style.display = "none";
+        }
+    },true);
+
+    // https://www.cnblogs.com/agansj/p/7885469.html
+    function utf8Length(str) {
+        if (str === undefined) {
+            return 0;
+        }
+        str = str + '';
+        if (!str) {
+            return 0;
+        }
+        let len = 0;
+        for (let i = 0; i < str.length; i++) {
+            let c = str.charCodeAt(i);
+            //单字节加1
+            if ((c >= 0x0001 && c <= 0x007e) || (0xff60 <= c && c <= 0xff9f)) {
+                len++;
+            } else {
+                len += 2;
+            }
+        }
+        return len;
+    }
+    const vm = new Vue({
+        el: '#app',
+        data: initData({
+            tabActiveName:'view',
+            params: {},
+            tableInfo: {},
+            primaryKey:'',
+            sqlSelectColumnText:'',
+            drawer:false,
+            table:{},
+            action: {query:{conditions:[],columns:[]}},
+            buildPre:'',
+            templateSelectIndex:1,
+            templates:[
+                {name:'index.jsp',title:''},
+                {name:'controller.java',title:''},
+                {name:'service.java',title:''},
+                {name:'serviceImpl.java',title:''},
+                {name:'manager.java',title:''},
+                {name:'managerImpl.java',title:''},
+                {name:'mapper.java',title:''},
+                {name:'mapper.xml',title:''},
+                {name:'model.java',title:''},
+                {name:'query.java',title:''},
+                {name:'vo.java',title:''},
+                {name:'enum.java',title:''},
+            ],
+            config: {erasePrefix :null,author: 'lrg', date: new Date().format('yyyy-MM-dd'),symbolPercent:'%',symbolSingleQuotes:"'",lombok:true,javaPackages:{text:null}},
+
+            queryParam: {
+                pageNumber: 1, pageLength: 20,
+            },
+            queryTableHeight:null,
+            edit:{
+                show:false,
+                title:'',
+            },
+            image:{
+                show:false,
+                baseUrl:'https://img-oss.stage.yunshanmeicai.com',
+                urlText:'',
+                urls:[],
+            }
+        }),
+        created() {
+
+        },
+        watch: {
+            tabActiveName:function (){
+                switch (this.tabActiveName) {
+                    case 'view':{
+
+                        break;
+                    }
+                    case 'coding':{
+                        this.mergeParentConfig();
+                        console.log('结果',JSON.stringify(this.config));
+                        this.buildCode(this.templateSelectIndex||0);
+                        break;
+                    }
+                }
+            },
+            'image.baseUrl':function (val) {
+                this.handleImage('refresh');
+            }
+        },
+        computed: {
+            hasCopyCode() {
+                return this.buildPre && this.buildPre.length > 0
+            }
+        },
+        mounted(){
+            this.$nextTick(()=>{ // 页面渲染完成后的回调
+               // console.log(this.$refs.getheight.offsetHeight)
+            })
+
+            //监听页面滚动事件
+            window.addEventListener('scroll', () => {
+                let appViewFormH = elAppViewForm.offsetHeight;
+                let appViewActionH = elAppViewAction.offsetHeight;
+                let h = appViewFormH + appViewActionH;
+                if (scrollY > h) {
+                    if (!this.queryTableHeight) {
+                        this.queryTableHeight = window.innerHeight - 40;
+                    }
+                } else {
+                    if (this.queryTableHeight) {
+                        this.queryTableHeight = null;
+                    }
+                    elAppViewTable.style.height='100%';
+                }
+            });
+
+            this.mergeParentConfig();
+
+            this.params=SilenceUtils.getUrlParams();
+            console.log('params',this.params);
+            this.axiosDbTableInfo(this.params).then(res => {
+
+                let sequence=['id',
+                    'fCity','fcity','cityId','cityName',
+                    'fWarehouse','fwarehouse','warehouseId','warehouseName',
+                    'sortingCenterId','fsortingCenter','fSortingCenter',
+                    'deliveryDate','productBatch','skuId','ssuId',
+                    'code','name','type','status',
+                    'bill','billId','billCode',
+                    null,
+                    'creater','creator','createrName','creatorName','ct','cT','createTime',
+                    'updater','updator','updaterName','updatorName','ut','uT','updateTime',
+                    'isDeleted','isDelete','deleted','delete'];
+                if (res.success) {
+                    let obj=res.data || {};
+                    let columnList=obj.columnList||[];
+
+                    let nullIndex=sequence.indexOf(null);
+                    columnList.forEach((item,index)=>{
+
+                        item.columnNameHump=Table.strHump(item.columnName);
+
+                        if(item.columnKey==='PRI'){
+                            this.primaryKey=item.columnName;
+                            item.sequence=0;
+                            return true;
+                        }
+
+                        item.sequence=sequence.indexOf(item.columnNameHump);
+                        if(item.sequence===-1){
+                            item.sequence=nullIndex;
+                        }
+
+                        if(item.sequence===nullIndex){
+                            item.sequence+=index;
+                        }else if(item.sequence>nullIndex){
+                            item.sequence+=100;
+                        }
+                    });
+                    this.sqlSelectColumnText=columnList.map(item=>'`'+item.columnName+'`').join(',');
+                    columnList.sort((o1,o2)=>o1.sequence-o2.sequence);
+                    this.tableInfo = obj;
+
+                    this.mergeParentConfig();
+                    this.table = new Table(this.tableInfo, this.config);
+
+                    let action = new TemplateObj({config:this.config,table:this.table,columns:this.table.columns});
+                    this.action=action;
+                    console.log('action---',action);
+
+                } else {
+                    // 提示
+                }
+            }).catch(err => {
+
+            }).finally(()=>{
+                this.handleQuery(1);
+            });
+
+
+        },
+        methods: {
+            handleQuery: initHandleQuery2({
+                setParams(queryParam) {
+
+                    let that=vm;
+                    // 基础参数
+                    let params = that.getAxiosBaseParams();
+                    params.sqlSelectColumnText = that.sqlSelectColumnText;
+                    // 分页参数
+                    params.pageNumber = queryParam.pageNumber;
+                    params.pageLength = queryParam.pageLength;
+                    // 查询参数
+                    let jsonParam = {};
+                    that.table.columns.forEach(item => {
+
+                        let val = queryParam[item.code];
+                        if(val===0){
+                            jsonParam[item.code] = val;
+                            return;
+                        }
+                        if (!val) {
+                            return;
+                        }
+                        val=val.replace(/，/g,',');
+                        if(val.indexOf(',')>-1){
+                            val=val.split(',').filter(item=>item);
+                            if(val.length<=1){
+                                val=val[0];
+                            }
+                        }
+                        if(!val){
+                            return;
+                        }
+                        jsonParam[item.code] = val;
+                    });
+                    params.jsonParamStr = JSON.stringify(jsonParam);
+
+                    return SilenceUtils.getUrlParams(params);
+                },
+                setData(result){
+
+                    let isTime = function (field) {
+
+                        if (!field) {
+                            return false;
+                        }
+
+                        if (['syncTime', 'deliveryDate', 'ct', 'ut', 'createTime', 'updateTime'].includes(field)) {
+                            return true;
+                        }
+
+                        if (field.indexOf('Date') !== -1 || field.indexOf('Time') !== -1 || field.indexOf('time') !== -1) {
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    let mapFieldValueLength={};
+                    (result.data||[]).forEach(item=>{
+
+                        item.editing=false;
+                        for (let field in item) {
+                            let val = item[field];
+                            let valLen=utf8Length(val);
+                            let len=mapFieldValueLength[field]||0;
+                            if(len<valLen){
+                                mapFieldValueLength[field]=valLen;
+                            }
+
+                            if (!isTime(field)) {
+                                continue;
+                            }
+
+                            if (val) {
+                                item[field] += SilenceUtils.getDateTimeStr(val, " (yyyy-MM-dd HH:mm:ss)");
+                            }
+                        }
+                       /* ['syncTime','deliveryDate','ct','ut','createTime','updateTime'].forEach(f=>{
+                            let val=item[f];
+                            if(val){
+                                item[f]+=SilenceUtils.getDateTimeStr(val, " (yyyy-MM-dd HH:mm:ss)");
+                            }
+                        });*/
+                    });
+                    vm.action.query.columns.forEach(item=>{
+                        let valLength = mapFieldValueLength[item.codeHump] || 0;
+                        if (valLength < 5) {
+                            valLength = utf8Length(item.name);
+                            if (valLength > 10) {
+                                valLength = 10;
+                            }
+                        }
+                        let width = valLength * 12+15+20;
+                        if (width > 350) {
+                            width = 350;
+                        } else if (width < 60) {
+                            width = 60;
+                        }
+                        item.width = width;
+                    });
+                }
+            }),
+            handleColumnDblclick(event,field,fieldHump,row){
+
+                if (window.location.href.indexOf('http://localhost:') !== 0) {
+                    return;
+                }
+                row.editing=true;
+                let el=event.target;
+                el.setAttribute('contenteditable',true);
+                el.className+=' column-value-editing';
+                el.focus();
+            },
+            handleColumnBlur(event,field,fieldHump,row){
+                row.editing=false;
+                let el = event.target;
+                el.setAttribute('contenteditable', false);
+                el.className = el.className.replace(/ column-value-editing/g, "");
+                let sourceValue = row[fieldHump];
+                let newValue = el.innerText.trim();
+                if (sourceValue == newValue) {
+                    console.log('没有更新');
+                    return;
+                }
+
+                let update = {};
+                update[field] = newValue;
+
+                let params = this.getAxiosBaseParams();
+                params.action = 'updateByPrimaryKey';
+                params.jsonParamStr = JSON.stringify(update);
+                params.primaryKeyValue = row[this.primaryKey];
+
+                axios.post("/database/index?" + params.action, SilenceUtils.getUrlParams(params)).then(({data: res} = result) => {
+
+                    if(res.success && res.data>0){
+                        row[fieldHump]=newValue;
+                    }else {
+                        el.innerText=sourceValue;
+                        this.$message({showClose: true, type: 'warning', message: res.message || res.code});
+                    }
+                }).catch(err => {
+                    console.error(err);
+                    el.innerText=sourceValue;
+                    this.$message({showClose: true, type: 'error', message: err});
+                });
+            },
+            handleChooseHas(list,type){
+                if(!list){
+                    return;
+                }
+                list.forEach(item=>{
+                    if(type===0){
+                        item.has=false;
+                    }else if(type===1){
+                        item.has=true;
+                    }else if(type===2){
+                        item.has=!item.has;
+                    }
+                });
+                //强制刷新   要优化
+                this.$forceUpdate();
+            },
+            getAxiosBaseParams() {
+                // 获取数据
+                let {connectionId, url, username, password, database, tableCode} = this.params;
+                // 设置数据
+                let params = {connectionId, url, username, password, database, tableCode};
+                params.primaryKey = this.primaryKey;
+                return params;
+            },
+            axiosDbTableInfo(params) {
+                params.action = 'tableInfo';
+                return new Promise((resolve, reject) => {
+                    axios.post("/database/index?" + params.action, SilenceUtils.getUrlParams(params)).then(({data: res} = result) => {
+                        resolve(res);
+                    }).catch(res => {
+                        reject(res);
+                    });
+                });
+            },
+            buildCode(index){
+                let template=this.templates[index];
+                if(!template){
+                    console.log("template 没有找到");
+                    return ;
+                }
+                axios.get('/static/template-mc/'+template.name).then(({data} = res) => {
+
+                    this.buildPre= this.templateValue(data);
+                });
+            },
+            templateValue(data) {
+                let config = this.config||{};
+                let table = this.table;
+                let action = new TemplateObj({config,table,columns:table.columns});
+
+                action.system = {include:{}};//this.systemMap[this.systemId] || {include: {}};
+
+                return template(data,action.toJson()).replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+            },
+            handleCopyCode(val) {
+
+                let value =''
+                if(val===undefined){
+                    value=this.buildPre;
+                }else{
+                    value=val;
+                }
+
+                let elCopy = document.getElementById("currentCopyCode");
+
+                elCopy.value = value;
+                elCopy.style.display = '';
+                elCopy.select(); // 选择对象
+                // 执行浏览器复制命令
+                document.execCommand("Copy");
+                elCopy.style.display = 'none';
+                elCopy.value = '';
+
+                this.$message({
+                    showClose: true,
+                    message: '复制成功',
+                    type: 'success'
+                });
+            },
+            handleEdit(action,val){
+
+            },
+            isHasImage(row, field) {
+                let val = row[field];
+                if (typeof val !== 'string') {
+                    return false;
+                }
+                if (!val) {
+                    return false;
+                }
+                if (val.indexOf('.jpg') !== -1
+                    || val.indexOf('.png') !== -1
+                    || val.indexOf('.jpeg') !== -1
+                    || val.indexOf('.gif') !== -1) {
+                    return true;
+                }
+                return false;
+            },
+            handleImage(action,val){
+                const obj=this.image;
+                switch (action) {
+                    case 'open':{
+
+                        obj.show=true;
+                        obj.urlText=val;
+                        setTimeout(()=>{
+                            this.handleImage('refresh');
+                        },1000);
+
+                        return;
+                    }
+                    case 'refresh':{
+
+                        obj.urls=[];
+                        let val=obj.urlText||'';
+                        if(val.indexOf('|')>0){
+                            val=val.split('|');
+                        }else if(val.indexOf(',')>0){
+                            val=val.split(',');
+                        }else {
+                            val=[val];
+                        }
+
+                        val.forEach(item => {
+                            let url = item;
+                            if (item.indexOf('http') !== 0) {
+                                url = obj.baseUrl + '/' + item;
+                            }
+                            url = url.replace(new RegExp('//', 'g'), '/').replace('\/', '/').replace(':/','://');
+                            obj.urls.push(url);
+                        });
+                        return;
+                    }
+                }
+            },
+            mergeParentConfig(){
+                let win=window.parent||window.top;
+                if(win && win.vm && win.vm.config){
+                    this.copyConfig(JSON.parse(JSON.stringify(win.vm.config)),this.config);
+                }
+            },
+            copyConfig(source, target) {
+
+                if (typeof source !== 'object') {
+                    return;
+                }
+                if (typeof target !== 'object') {
+                    return;
+                }
+
+                let sourceIsArray = source instanceof Array;
+                let targetIsArray = target instanceof Array;
+                if (sourceIsArray !== targetIsArray) {
+                    // 类型不一致
+                    return;
+                }
+
+                let inArr = undefined;
+                if (targetIsArray) {
+                    inArr = targetIsArray.length;
+                    if (inArr < sourceIsArray.length) {
+                        inArr = sourceIsArray.length;
+                    }
+                } else {
+                    inArr = [];
+                    inArr.push(...Object.keys(target));
+                    inArr.push(...Object.keys(source));
+                }
+
+                for (let key in inArr) {
+
+                    if(!targetIsArray){
+                        key=inArr[key];
+                    }
+
+                    let targetVal = target[key];
+                    let sourceVal = source[key];
+                    if(sourceVal!==0 && !sourceVal){
+                        continue;
+                    }
+                    if (sourceVal && targetVal !== 0 && !targetVal) {
+                        target[key] = sourceVal;
+                        continue;
+                    }
+
+                    let targetValTypeOf = typeof targetVal;
+                    let sourceValTypeOf = typeof sourceVal;
+                    if (targetValTypeOf !== sourceValTypeOf) {
+                        // 类型不一致
+                        continue;
+                    }
+
+                    switch (targetValTypeOf) {
+                        case "object": {
+                            this.copyConfig(sourceVal, targetVal);
+                            break;
+                        }
+                        default: {
+                            target[key] = sourceVal;
+                            break;
+                        }
+                    }
+                }
+            },
+            scroll () {
+                let that = this
+                console.log(elAppVies.scrollTop);
+                if (elAppVies.scrollHeight <= window.screen.height + elAppVies.scrollTop) {
+
+                }
+            },
+        }
+    });
+</script>
+
+</body>
+</html>

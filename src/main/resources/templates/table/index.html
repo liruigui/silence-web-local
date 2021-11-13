@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>表</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="../static/element-ui/index.css">
+    <style type="text/css">
+        .el-radio-group .el-radio {
+            width: 100%;
+            line-height: 35px;
+        }
+        html,
+        body,
+        #app,
+        .main{
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+        }
+
+        .main{
+            display: flex;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .main>div:first-child{
+            position: relative;
+            width: 300px;
+            overflow: auto;
+            box-sizing: border-box;
+        }
+        .main>div:last-child{
+            overflow: auto;
+            flex: 1;
+        }
+
+        .custom-tree-node{
+            position: relative;
+            display: flex;
+            width: 100%;
+            align-items: center;
+        }
+
+        .left-top{
+            position: absolute;
+            top: 0px;
+            height: 30px;
+            z-index: 2;
+            width: 100%;
+            padding-right: 10px;
+            box-sizing: border-box;
+        }
+        .el-tree{
+            box-sizing: border-box;
+            padding-right: 10px;
+            padding-top:30px;
+            height: 100%;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="main">
+        <div>
+            <div class="left-top">
+                <el-input size="mini" clearable placeholder="输入关键字进行过滤" v-model="treeFilterText"  class="input-with-select" >
+                    <el-button slot="append" type="primary" icon="el-icon-plus" circle @click="add.show = true" ></el-button>
+                </el-input>
+            </div>
+            <el-tree ref="tree" :props="props" node-key="name" :load="loadNode" lazy @node-click="treeNodeClick" :filter-node-method="treeFilterNode" >
+             <span class="custom-tree-node" slot-scope="{ node, data }">
+                <span v-text="node.label"></span>
+                <span style="right: 0px;padding-left:5px;padding-right:5px;position: absolute;" v-show="node.level===1" @click.stop >
+                  <el-button type="text" size="mini" @click="() => treeRemoveNode(node, data)"><span v-text="'移除'"></span></el-button>
+                </span>
+                <span style="right: 0px;padding-left:5px;padding-right:5px;position: absolute;" v-show="node.level===3" @click.stop >
+                  <el-button type="text" size="mini" @click="() => treeNodeBuildCode(node, data)"><span v-text="'生成文件'"></span></el-button>
+                </span>
+              </span>
+            </el-tree>
+        </div>
+        <div>
+            <el-input type="textarea" :rows="3" placeholder="请输入内容" v-model="sqlText"></el-input>
+            <el-table :data="columnList">
+                <el-table-column type="index" width="50" label="#"></el-table-column>
+                <el-table-column prop="field" width="300" label="字段"></el-table-column>
+                <el-table-column prop="type" width="150" label="类型"></el-table-column>
+                <el-table-column align="center" width="100" prop="null" label="允许NULL"></el-table-column>
+                <el-table-column align="center" width="80" prop="default" label="默认值"></el-table-column>
+                <el-table-column prop="comment" label="描述"></el-table-column>
+            </el-table>
+        </div>
+    </div>
+
+    <el-dialog title="添加数据库连接" :visible.sync="add.show" width="400px">
+        <el-form :inline="false" ref="form" class="demo-form-inline" label-width="60px" >
+            <el-form-item label="名称">
+                <el-input v-model="add.data.name" placeholder="名称"></el-input>
+            </el-form-item>
+            <el-form-item label="URL">
+                <el-input v-model="add.data.url" placeholder="127.0.0.1:3306"></el-input>
+            </el-form-item>
+            <el-form-item label="用户名">
+                <el-input v-model="add.data.username" placeholder="用户名"></el-input>
+            </el-form-item>
+            <el-form-item label="密码">
+                <el-input v-model="add.data.password" show-password placeholder="密码"></el-input>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="add.show = false" ><span v-text="'取消'"></span></el-button>
+            <el-button type="primary" @click="handleAdd" ><span v-text="'确定'"></span></el-button>
+        </span>
+    </el-dialog>
+</div>
+
+<!-- 引入组件库 -->
+<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="/static/lib/vue.js/element-ui/vue.js"></script>
+<script src="/static/lib/element-ui/index.js"></script>
+<script src="/static/lib/axios.js/element-ui/axios.js"></script>
+<script>
+    const vm = new Vue({
+        el: '#app',
+        data() {
+            return {
+                fullscreenLoading: false,
+
+                treeFilterText:null,
+                props: {
+                    label: 'name',
+                    children: 'zones',
+                    isLeaf: 'leaf'
+                },
+
+                sqlText:'',
+                databaseList:[],
+                columnList:[],
+                add:{
+                    show:false,
+                    data:{
+                        name:null,
+                        url:null,
+                        username:'root',
+                        password:null,
+                    },
+                }
+            }
+        },
+        beforeCreate() {
+
+        },
+        created() {
+            //vue创建成功，此时html元素尚未挂载
+            this.databaseList = this.getDatabaseConnection();
+        },
+        mounted() {
+            //此时html元素已经挂载成功
+
+
+        },
+        watch: {
+            treeFilterText(val) {
+                this.$refs.tree.filter(val);
+            }
+        },
+        computed: {
+
+        },
+        methods: {
+            loadNode(node, resolve) {
+                if (node.level === 0) {
+                    return resolve(this.databaseList);
+                }
+
+                const data=node.data;
+
+                //查询数据库
+                if(node.level===1){
+
+                    this.getDatabase(data).then(data=>{
+                        resolve(data.databaseList)
+                    }).catch(err=>{
+                        resolve([])
+                    });
+                    return ;
+                }
+
+                //查询表
+                if(node.level===2){
+
+                    this.getTableList(data).then(data=>{
+                        resolve(data)
+                    }).catch(err=>{
+                        resolve([])
+                    });
+
+                    return ;
+                }
+
+                return resolve([]);
+            },
+            treeNodeClick(data,node){
+
+                if(node.level!==3){
+                    return;
+                }
+
+                localStorage.setItem("table-data",JSON.stringify(data));
+
+                this.getColumnList(data).then(data=>{
+                    this.columnList=data;
+                }).catch(err=>{
+                    this.columnList=[];
+                });
+
+            },
+            treeFilterNode(value, data) {
+
+                if (!value) return true;
+
+                value = value.replace(new RegExp("，", ("gm")), ",").toLowerCase();
+
+                let arr = value.split(',').filter(item=>item);
+
+                let text = data.name.toLowerCase();
+
+                return arr.filter(item => text.indexOf(item) !== -1).length > 0;
+            },
+            treeRemoveNode(node, data) {
+
+                this.$refs.tree.remove(node);
+
+                const index = this.databaseList.findIndex(d => d == data);
+
+                this.databaseList.splice(index,1);
+
+                this.getDatabaseConnection(null,this.databaseList);
+
+                /*const parent = node.parent;
+                const children = parent.data.children || parent.data;
+                const index = children.findIndex(d => d.name === data.name);
+                children.splice(index, 1);*/
+            },
+            treeNodeBuildCode(node, data){
+
+                axios.post("table?build", data).then(result => {
+                    this.$message.success('生成成功');
+
+                }).catch(err=>{
+
+                    this.$message.error('连接失败，请检查数据');
+                });
+            },
+            handleQuery(val, action) {
+
+            },
+            handleAdd(action){
+
+                let obj = this.add;
+                let data = this.add.data;
+
+                switch (action) {
+                    case 'close': {
+                        for (let key in data) {
+                            data[key] = null;
+                        }
+                        obj.show = false;
+                        return;
+                    }
+                }
+
+                this.getDatabase(data).then(obj=>{
+
+                    this.$message.success('添加成功');
+                    this.databaseList = this.getDatabaseConnection(data);
+
+                    this.handleAdd('close');
+
+                }).catch(err=>{
+                    this.$message.error('连接失败，请检查数据');
+                    this.$refs.tree.insertAfter(data,this.databaseList[this.databaseList.length-1].name);
+                    this.getDatabaseConnection(data);
+                });
+            },
+            getDatabase(obj) {
+
+                return new Promise( (resolve, reject)=> {
+
+                    axios.post("table?database", {
+                        action:'database',
+                        url: obj.url,
+                        username: obj.username,
+                        password: obj.password,
+                    }).then(result => {
+                        let data = result.data || {};
+
+                        data.data.databaseList.forEach(item => {
+                            item.name = item.code;
+                            item.url = obj.url+'/'+item.code;
+                            item.username = obj.username;
+                            item.password = obj.password;
+                        });
+
+                        resolve(data.data);
+
+                    }).catch(err=>{
+
+                        reject(err);
+                    });
+
+                });
+
+            },
+            getTableList(obj) {
+
+                return new Promise( (resolve, reject)=> {
+
+                    axios.post("table?tableList", {
+                        action:'tableList',
+                        url: obj.url,
+                        username: obj.username,
+                        password: obj.password,
+                    }).then(result => {
+                        let data = result.data || {};
+
+                        let list = data.data.map(item => {
+                            return {
+                                name: item, leaf: true,
+                                url: obj.url,
+                                username: obj.username,
+                                password: obj.password,
+                                tableCode:item
+                            };
+                        });
+
+                        resolve(list);
+
+                    }).catch(err=>{
+
+                        reject(err);
+                    });
+
+                });
+
+            },
+            getColumnList(obj) {
+
+                return new Promise( (resolve, reject)=> {
+
+                    axios.post("table?columnList", {
+                        action:'columnList',
+                        url: obj.url,
+                        username: obj.username,
+                        password: obj.password,
+                        tableCode:obj.name
+                    }).then(result => {
+                        let data = result.data || {};
+
+                        let list = data.data||[];
+
+                        resolve(list);
+
+                    }).catch(err=>{
+
+                        reject(err);
+                    });
+
+                });
+
+            },
+            getDatabaseConnection(newItem,setArr){
+
+                const storageKey = 'sc-databaseList';
+
+                if(setArr){
+                    localStorage.setItem(storageKey, JSON.stringify(setArr));
+                    return setArr;
+                }
+
+                let storageValue = localStorage.getItem(storageKey);
+
+                if (storageValue && storageValue.indexOf('[') === 0) {
+                    storageValue = JSON.parse(storageValue);
+                } else {
+                    storageValue = [];
+                }
+
+                //默认数据
+                if (storageValue.length == 0) {
+
+                    storageValue.push({ name: '127.0.0.1', url: '127.0.0.1:3306', username: 'root', password: '12345678' });
+                    storageValue.push({ name: '157', url: '47.93.44.157:3306/chenghan_op', username: 'root', password: 'sun69198950'});
+
+                    localStorage.setItem(storageKey, JSON.stringify(storageValue));
+                }
+
+                //新增数据
+                if (newItem) {
+                    storageValue.push(newItem);
+                    localStorage.setItem(storageKey, JSON.stringify(storageValue));
+                }
+
+                return storageValue;
+            }
+        }
+    });
+
+    /**
+     * 获取被选中的字符串
+     * @returns {string|*}
+     */
+    function selectionText() {
+        if (window.getSelection) {
+            return window.getSelection().toString();
+        } else if (document.selection && document.selection.createRange) {
+            return document.selection.createRange().text;
+        }
+        return "";
+    }
+</script>
+</body>
+</html>

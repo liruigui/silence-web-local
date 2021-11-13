@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>数据库</title>
+    <div th:replace="common/index::style"></div>
+    <style type="text/css">
+        html, body, #app {
+            margin: 0px;
+            height: 100%;
+        }
+
+        #app {
+
+        }
+        .show-menu{
+            position: fixed;
+            bottom: 0px;
+            left: 0px;
+            z-index: 5;
+            background-color: #ddd;
+            cursor: pointer;
+            padding: 2px;
+            border-top-right-radius: 5px;
+        }
+
+        .container {
+           /* border: 1px solid red;*/
+            display: flex;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .container-left {
+           /* border: 1px solid blue;*/
+            width: 300px;
+            display: flex;
+            flex-flow: column;
+            border-bottom: 1px solid #ddd;
+        }
+        /* 粘性布局 */
+        .container-left .container-left__tree .el-tree-node.is-expanded>.el-tree-node__content{
+            position: sticky;
+            top:0;
+            z-index: 99;
+            background-color: white;
+        }
+        .container-left .container-left__tree>.el-tree-node.is-expanded>.el-tree-node__children>.el-tree-node.is-expanded>.el-tree-node__content{
+            /*position: sticky;
+            top:0;
+            z-index: 97;
+            background-color: white;*/
+            z-index: 97;
+        }
+
+     /*   .show-text::after {
+            z-index: 9999;
+
+            position: fixed;
+            !* top: 0; *!
+            display: block;
+            left: 80px;
+            content: '';
+        }*/
+       /* .show-text::after {
+            counter-reset: attr(node-label);
+            content: '';
+            !*content: counter(mouse-x) "px, " counter(mouse-y) "px";*!
+            position: fixed;
+            top: 0;
+            left: 0;
+            -webkit-transform: translate(calc(var(--mouse-x) * 1px), calc(var(--mouse-y) * 1px));
+            transform: translate(calc(var(--mouse-x) * 1px), calc(var(--mouse-y) * 1px));
+        }*/
+        /*
+        .show-text:hover::after{
+            content: attr(node-label);
+        }*/
+        /*.el-tree-node__content>.custom-tree-node:hover{
+            position: absolute;
+            z-index: 9999;
+        }*/
+
+        .container-left__top{
+            width: 100%;
+        }/*
+        .container-left__top>.el-input{
+            width: 85px;
+        }
+        .container-left__top>.el-input .el-input__inner{
+           padding: 0 2px;
+            text-align: center;
+        }*/
+        .container-left__tree{
+            width: 100%;
+            flex: 1;
+            display: inline-block;
+            overflow: auto;
+        }
+        /* 左边树x滚动条 */
+        .container-left .el-tree-node.is-expanded>.el-tree-node__children {
+            display: table;
+            width: 100%;
+        }
+        /* 不好用 不能使用 position: fixed; 需要另想办法*/
+        /*.custom-tree-node {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            display: block;
+        }*/
+        /*
+        .el-tree-node__content .custom-tree-node .show-text:hover:after {
+            content: attr(node-label);
+            color: black;
+            position: absolute;
+            top: 0px;
+            left: 0;
+            z-index: 50;
+            cursor: pointer;
+        }
+        */
+        /* 不好用 不能使用 position: fixed; 需要另想办法
+        .el-tree-node__content:hover .custom-tree-node{
+            z-index: 5;
+            position: fixed;
+            background-color: #f8f8f8;
+            margin-left: 23px;
+        }*/
+
+        .container-center{
+            flex: 1;
+            display: flex;
+            flex-flow: column;
+            width: 0;
+            /*border-bottom: 0;
+            border-left-style: dashed;*/
+        }
+        .container-center .el-tabs__content{
+            flex: 1;
+            padding: 0;
+        }
+        .container-center .el-tabs__content .el-tab-pane:first-child{
+            padding: 10px;
+        }
+        .container-center .el-tabs__content .el-tab-pane{
+            height: 100%;
+        }
+        .container-right {
+            border: 1px solid green;
+            width: 300px;
+            overflow: hidden;
+            padding: 5px;
+        }
+        .container-right pre{
+            overflow: auto;
+            height: 100%;
+        }
+
+    </style>
+</head>
+<body>
+<div id="app">
+    <el-tooltip class="item" effect="dark" content="显示左边菜单树" placement="top-start">
+        <i :class="['show-menu',showMenu?'el-icon-arrow-left':'el-icon-arrow-right']" @click="showMenu=!showMenu" ></i>
+    </el-tooltip>
+    <div class="container">
+        <div class="container-left" v-show="showMenu">
+            <div class="container-left__top">
+                <!--<el-input size="mini" placeholder="连接" v-model="treeFilterText" ></el-input>
+                <el-input size="mini" placeholder="数据库" v-model="treeFilterText" ></el-input>
+                <el-input size="mini" placeholder="表" v-model="treeFilterText" ></el-input>
+                <el-button size="mini" type="primary" icon="el-icon-plus" circle @click="connection.show=true"  ></el-button>-->
+                <el-input size="mini" clearable placeholder="输入关键字进行过滤,多个用逗号分隔" v-model="treeFilterText"  class="input-with-select" >
+                   <el-button slot="append" type="primary" icon="el-icon-plus" circle @click="connection.show=true"  ></el-button>
+                </el-input>
+            </div>
+            <el-tree class="container-left__tree" ref="tree" :props="props" node-key="name" :load="loadNode" lazy
+                     @node-click="treeNodeClick"
+                     :node-expand="treeNodeExpand"
+                     :filter-node-method="treeFilterNode" >
+                <span class="custom-tree-node" slot-scope="{ node, data }">
+                    <i v-show="node.level===1" @click="treeNodeRefresh(node)" class="el-icon-paperclip"></i>
+                    <i v-show="node.level===2" @click="treeNodeRefresh(node)" class="el-icon-receiving"></i>
+                    <el-tooltip v-show="node.level===3" class="item" effect="dark" :content="node.label" placement="top-start">
+                        <i @click="treeNodeRefresh(node)" class="el-icon-tickets"></i>
+                    </el-tooltip>
+                    <span class="show-text" :_title="node.level===3?node.label:''" :node-label="node.label" v-text="node.label"></span>
+                    <span  v-show="node.level===1" v-text="data.url" style="color: #d3d4d6;"></span>
+                    <span style="right: 0px;padding-left:5px;padding-right:5px;position: absolute;" v-show="node.level===11" @click.stop >
+                        <el-button type="text" size="mini" @click="() => treeRemoveNode(node, data)"><span v-text="'移除'"></span></el-button>
+                    </span>
+                    <span style="right: 0px;padding-left:5px;padding-right:5px;position: absolute;" v-show="node.level===13" @click.stop >
+                        <el-button type="text" size="mini" @click="() => treeNodeBuildCode(node, data)"><span v-text="'生成文件'"></span></el-button>
+                    </span>
+                </span>
+            </el-tree>
+        </div>
+        <el-tabs class="container-center" v-model="tabSelectValue"   @tab-remove="tabRemove" type="border-card">
+            <el-tab-pane :closable="false" name="config" label="全局配置">
+                <p style="color: red;font-size: 14px;">
+                    <span v-text="'需要引用 wms-utils 1.0.5 (含)以上版本'"></span>
+                </p>
+                <el-form size="small" :inline="true" label-width="100px" class="form-query">
+                    <el-form-item label="系统">
+                        <el-select v-model="config.systemId" placeholder="系统" style="width: 220px;" >
+                            <el-option v-for="item in systemList" :key="'query_type_'+item.id" :label="item.code+'   '+item.name" :value="item.id">
+                                <span style="float: left" v-text="item.code"></span>
+                                <span style="float: right; color: #8492a6; font-size: 13px;margin-left: 10px;" v-text="item.name"></span>
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-checkbox v-model="config.lombok"><span v-text="'lombok'"></span></el-checkbox>
+                    </el-form-item>
+                    <el-form-item label="作者">
+                        <el-input clearable v-model="config.author" placeholder="请输入作者"></el-input>
+                    </el-form-item>
+                    <el-form-item label="表前缀">
+                        <el-input v-model="config.erasePrefix" clearable placeholder="去除数据库表前缀"></el-input>
+                    </el-form-item>
+                </el-form>
+                <el-form size="small" :inline="false" label-width="100px" class="form-query">
+                    <el-row>
+                        <el-col :span="16">
+                            <el-form-item label="文件路径配置">
+                                <el-input v-model="config.javaPackages.text" clearable placeholder="数据改动时，自动解析">
+                                    <template slot="append">影响后面的所有路径</template>
+                                </el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="8">
+                            <el-form-item label="controller">
+                                <el-input v-model="config.javaPackages.controller" clearable placeholder="controller"></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="service">
+                                <el-input v-model="config.javaPackages.service" clearable placeholder=""></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="serviceImpl">
+                                <el-input v-model="config.javaPackages.serviceImpl" clearable placeholder=""></el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="8">
+                            <el-form-item label="manager">
+                                <el-input v-model="config.javaPackages.manager" clearable placeholder=""></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="managerImpl">
+                                <el-input v-model="config.javaPackages.managerImpl" clearable placeholder=""></el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="mapper">
+                                <el-input v-model="config.javaPackages.mapper" clearable placeholder=""></el-input>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                    <el-col :span="8">
+                        <el-form-item label="model">
+                            <el-input v-model="config.javaPackages.model" clearable placeholder="实体类"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="query">
+                            <el-input v-model="config.javaPackages.query" clearable placeholder="查询类"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="enum">
+                            <el-input v-model="config.javaPackages.enum" clearable placeholder="枚举"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-form>
+            </el-tab-pane>
+            <el-tab-pane closable v-for="item in tabList" :key="'tab_'+item.uuid" :name="item.uuid" :label="item.name">
+                <iframe frameborder="0" width="100%" height="100%" :src="item.url"></iframe>
+            </el-tab-pane>
+        </el-tabs>
+       <!-- <div class="container-right">
+
+            <pre v-text="tableInfo.createTableSql"></pre>
+
+        </div>-->
+
+    </div>
+    <!-- 新增连接 -->
+    <el-dialog :close-on-click-modal="false" top="10px" :title="connection.title" :visible.sync="connection.show" width="90%" >
+        <iframe frameborder="0" width="100%" height="600px" src="/connection/index"></iframe>
+    </el-dialog>
+</div>
+<div th:replace="common/index::script"></div>
+<script>
+
+
+    document.addEventListener('scroll', function() {
+        let tipDiv = window.tipDiv;
+        if (tipDiv) {
+            tipDiv.style.display = "none";
+        }
+    },true);
+
+
+
+    document.addEventListener('mousemove', debounce(10,titleMousemove))
+
+    function titleMousemove(e){
+
+        let tipDiv = window.tipDiv;
+        if (!tipDiv) {
+            window.tipDiv = tipDiv = document.createElement("div");
+            tipDiv.id = "tip-div";
+            tipDiv.className='show-text';
+            with (tipDiv.style) {
+                display = "none";
+                //color = "#999";
+                color = "#606266";
+                //backgroundColor = "#f3f3f3";
+                backgroundColor = "#fff";
+                //border = "0px solid #cccccc";
+                //fontSize = "16px";
+                paddingRight = "5px";
+                position = "absolute";
+                //borderRadius = '10px';
+                pointerEvents= 'none';
+                //left = "0";
+                //top = "0";
+                // 保证层会处于最上层
+                zIndex = 2000;
+            }
+            document.body.appendChild(tipDiv);
+        }
+        tipDiv.style.display = "none";
+        tipDiv.innerHTML ='';
+        let title = e.target.getAttribute("_title");
+        if (!title) {
+            return;
+        }
+
+        let pos = e.target.getBoundingClientRect();
+        tipDiv.innerHTML = e.target.innerText;
+        //tipDiv.style.left = e.clientX + 10 + "px";
+        //tipDiv.style.top = e.clientY  + "px";
+        tipDiv.style.left = pos.left + "px";
+        tipDiv.style.top = pos.top  + "px";
+        tipDiv.style.display = "block";
+        /*
+         document.documentElement.style.setProperty('--mouse-x', e.clientX)
+         document.documentElement.style.setProperty('--mouse-y', e.clientY)*/
+    }
+
+    function debounce(delay,callback){
+
+        return function (){
+            clearTimeout(window.task)
+            window.task=setTimeout(()=>{
+                callback.apply(this,arguments)
+            },delay)
+        }
+    }
+
+    var vm = new Vue({
+        el: '#app',
+        data(){
+            return {
+                databaseList:[{name:'dsaf'}],
+                props: {
+                    lazy:true,
+                    label: 'name',
+                    //children: 'zones',
+                    isLeaf:function(data, node) {
+                        if(node.level!==3){
+                            return false;
+                        }
+                        return true;
+                    }
+                },
+                showMenu:true,
+                treeFilterText:null,
+                treeFilter:{
+                  level0Text:'',
+                  level1Text:'',
+                  level2Text:'',
+                  level3Text:'',
+                },
+                tableInfo:{},
+                tabList:[],
+                tabSelectValue:'config',
+                config: {
+                    erasePrefix: 't_,t_wms_,t_mes_,t_dms_',
+                    author: 'xxx',
+                    date: new Date().format('yyyy-MM-dd'),
+                    symbolPercent: '%',
+                    symbolSingleQuotes: "'",
+                    lombok: true,
+                    systemId: null,
+                    javaPackages: {text: null}
+                },
+                systemList:[],
+                systemMap:[],
+
+                connection:{
+                    show:false,
+                    title:'连接',
+                }
+            }
+        },
+        created() {
+           // this.axiosConnectionList();
+        },
+        watch: {
+            treeFilterText(val) {
+                localStorage.setItem('treeFilterText',val);
+                this.$refs.tree.filter(val);
+            },
+            "config.javaPackages.text": function (val) {
+
+                if(typeof val ==='undefined'){
+                    return;
+                }
+
+                let path = val || 'com.sprucetec';
+
+                let javaPackages=this.config.javaPackages;
+                javaPackages.model = path + '.model';
+                javaPackages.query = path + '.query';
+                javaPackages.enum = path + '.enums';
+                javaPackages.mapper = path + '.mapper';
+                javaPackages.mapperXml = path + '.mapper';
+                javaPackages.manager = path + '.manager';
+                javaPackages.managerImpl = path + '.manager.impl';
+                javaPackages.service = path + '.spi';
+                javaPackages.serviceImpl = path + '.service';
+                javaPackages.controller = path + '.controller';
+            },
+            'config.systemId': function (val) {
+                let system = this.systemMap[val] || {};
+                if (typeof system.javaPackages === 'string') {
+                    this.config.javaPackages.text = system.javaPackages;
+                    return;
+                }
+                this.config.javaPackages = system.javaPackages || {};
+            }
+        },
+        mounted(){
+
+            setTimeout(function (){
+                SilenceUtils.speak("欢迎使用静默数据库代码生成器");
+                SilenceUtils.speak(15.5);
+
+            },500);
+
+            this.treeFilterText=localStorage.getItem('treeFilterText');
+            axios.get("/static/json/system.json").then((response) => {
+                this.systemList = response.data||[];
+                this.systemList.forEach(item=>this.systemMap[item.id]=item);
+            });
+        },
+        methods:{
+            axiosConnectionList() {
+                return new Promise((resolve, reject) => {
+                    axios.post("/connection/index?connection", SilenceUtils.getUrlParams({'deleted':0})).then(({data: res} = result) => {
+                        resolve(res);
+                    }).catch(res => {
+                        reject(res);
+                    });
+                });
+            },
+            axiosDatabaseList(params) {
+                params.action = 'databaseList';
+                return new Promise((resolve, reject) => {
+                    axios.post("/database/index?" + params.action, SilenceUtils.getUrlParams(params)).then(({data: res} = result) => {
+                        resolve(res);
+                    }).catch(res => {
+                        reject(res);
+                    });
+                });
+            },
+            axiosDbTableList(params) {
+                params.action = 'tableList';
+                return new Promise((resolve, reject) => {
+                    axios.post("/database/index?" + params.action, SilenceUtils.getUrlParams(params)).then(({data: res} = result) => {
+                        resolve(res);
+                    }).catch(res => {
+                        reject(res);
+                    });
+                });
+            },
+            axiosDbTableInfo(params) {
+                params.action = 'tableInfo';
+                return new Promise((resolve, reject) => {
+                    axios.post("/database/index?" + params.action, SilenceUtils.getUrlParams(params)).then(({data: res} = result) => {
+                        resolve(res);
+                    }).catch(res => {
+                        reject(res);
+                    });
+                });
+            },
+            treeNodeRefresh(node){
+                node.loaded = false;
+                node.expand(); // 主动调用展开节点方法，重新查询该节点下的所有子节点
+            },
+            loadNode(node, resolve) {
+
+                if (node.level === 0) {
+                    this.axiosConnectionList().then(res => {
+                        let list=res.data || [];
+                        list.forEach(item=>{
+                           item.dataSource='database';
+                        });
+                        this.databaseList = list;
+                        return resolve(this.databaseList);
+                    }).catch(err=>{
+                        resolve([])
+                    });
+                    return ;
+                }
+
+                const data=node.data;
+
+                //查询数据库
+                if(node.level===1){
+                    let {id:connectionId}=data;
+                    this.axiosDatabaseList({connectionId}).then(res=>{
+
+                        let databaseList=[];
+                        if(res.success){
+                            databaseList=res.data.databaseList||[];
+                            databaseList.forEach(item=>{
+                                if(!item.name){
+                                    item.name=item.code;
+                                }
+                            });
+                        }
+                        // 'nextTick()' 下次dom更新时触发回调函数
+                        this.$nextTick().then(() =>{
+                            this.$refs.tree.filter(this.treeFilterText);
+                        });
+                        resolve(databaseList);
+                    }).catch(err=>{
+                        resolve([])
+                    });
+                    return ;
+                }
+
+                //查询表
+                if(node.level===2){
+
+                    let {id:connectionId}=node.parent.data;
+                    let database=data.code;
+                    this.axiosDbTableList({connectionId,database}).then(res=>{
+                        if(res.success){
+                            // 'nextTick()' 下次dom更新时触发回调函数
+                            this.$nextTick().then(() =>{
+                                this.$refs.tree.filter(this.treeFilterText);
+                            });
+                            resolve(res.data||[]);
+                        }else {
+                            resolve([]);
+                        }
+                    }).catch(err=>{
+                        resolve([])
+                    });
+
+                    return ;
+                }
+
+                return resolve([]);
+            },
+            treeNodeExpand(){
+
+            },
+            treeNodeClick(data,node){
+
+                //查询表字段
+                if (node.level === 3) {
+
+                    this.tableInfo = {};
+                    let {id:connectionId,name:connectionName,url} = node.parent.parent.data;
+                    let database = node.parent.data.code;
+                    let uuid = data.uuid;
+                    let tableCode = data.tableName;
+                    let tableName = data.tableComment;
+
+                    this.axiosDbTableInfo({connectionId, database, tableCode}).then(res => {
+                        if (res.success) {
+                            this.tableInfo = res.data || {};
+                        } else {
+                            // 提示
+                        }
+                    }).catch(err => {
+
+                    });
+
+                    // tab
+                    this.tabSelectValue=uuid;
+                    if(this.tabList.some(item=>item.uuid===uuid)){
+                        return;
+                    }
+                    const tab={
+                        uuid,
+                        name:tableName||tableCode,
+                        url: `page?connectionId=${connectionId}&connectionName=${connectionName}&url=${url}&database=${database}&tableCode=${tableCode}&tableName=${tableName}`,
+                        params: {connectionId,url, database, tableCode, tableName}
+                    };
+                    //tab.url='page?';
+                    //tab.url+=SilenceUtils.getUrlParams(tab.params);
+                    this.tabList.push(tab);
+                    return;
+                }
+
+            },
+            treeFilterNode(value, data) {
+
+                if (data.dataSource === 'database') {
+                    return true;
+                }
+
+                if (!value) return true;
+
+                value = value.replace(new RegExp("，", ("gm")), ",").toLowerCase();
+
+                let arr = value.split(',').filter(item=>item);
+
+                let text = data.name.toLowerCase();
+
+                return arr.filter(item => text.indexOf(item) !== -1).length > 0;
+            },
+            treeRemoveNode(node, data) {
+
+                this.$refs.tree.remove(node);
+
+                const index = this.databaseList.findIndex(d => d == data);
+
+                this.databaseList.splice(index,1);
+
+                this.getDatabaseConnection(null,this.databaseList);
+
+                /*const parent = node.parent;
+                const children = parent.data.children || parent.data;
+                const index = children.findIndex(d => d.name === data.name);
+                children.splice(index, 1);*/
+            },
+            tabRemove(targetName){
+                console.log('targetName',targetName);
+                let tabs = this.tabList;
+                let activeName = this.tabSelectValue;
+                if (activeName === targetName) {
+                    tabs.forEach((tab, index) => {
+                        if (tab.uuid === targetName) {
+                            let nextTab = tabs[index + 1] || tabs[index - 1];
+                            if (nextTab) {
+                                activeName = nextTab.uuid;
+                            }
+                        }
+                    });
+                }
+                if(tabs.length===1){
+                    activeName='config';
+                }
+                this.tabSelectValue = activeName;
+                this.tabList = tabs.filter(tab => tab.uuid !== targetName);
+            }
+        }
+    });
+</script>
+</body>
+</html>
